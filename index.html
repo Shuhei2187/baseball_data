@@ -225,19 +225,95 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 </head>
 <body>
 
-<!-- ===== GLOBAL NAV ===== -->
-<div class="nav-tabs" id="global-nav" style="display:none;">
-  <div class="nav-tab active" onclick="gotoTab('game')">試合入力</div>
-  <div class="nav-tab" onclick="gotoTab('team')">チーム登録</div>
-  <div class="nav-tab" onclick="gotoTab('setup')">試合設定</div>
+<!-- ===== GLOBAL HEADER ===== -->
+<div id="global-header" style="display:none;background:var(--navy);padding:0 16px;height:48px;display:none;align-items:center;justify-content:space-between;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <button onclick="gotoHome()" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:5px;" id="back-btn">← ホーム</button>
+    <span style="color:#fff;font-weight:700;font-size:15px;" id="header-title">⚾ PixelScore</span>
+  </div>
+  <div id="header-actions"></div>
 </div>
 
-<!-- ===== TEAM MASTER SCREEN ===== -->
-<div id="screen-team" class="screen active">
-  <div style="background:var(--navy);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
-    <div style="font-size:18px;font-weight:700;">⚾ PixelScore</div>
-    <button class="btn btn-amber" onclick="gotoSetup()">→ 試合設定へ</button>
+<!-- ===== HOME SCREEN ===== -->
+<div id="screen-home" class="screen active">
+  <div style="background:var(--navy);padding:32px 24px 40px;">
+    <div style="font-size:28px;font-weight:800;color:#fff;letter-spacing:-.5px;">⚾ PixelScore</div>
+    <div style="font-size:14px;color:rgba(255,255,255,.55);margin-top:4px;">野球スコア・データ分析アプリ</div>
   </div>
+  <div style="padding:20px 16px;max-width:600px;margin:0 auto;">
+
+    <!-- 新規試合 -->
+    <div onclick="gotoSetupFromHome()" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:16px;transition:box-shadow .15s;" onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+      <div style="width:52px;height:52px;background:var(--blue);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">⚾</div>
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:3px;">新規試合入力</div>
+        <div style="font-size:12px;color:var(--muted);">チームと打順を設定して試合のスコアを記録する</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>
+
+    <!-- 分析 -->
+    <div onclick="gotoAnalysisHome()" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:16px;" onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+      <div style="width:52px;height:52px;background:#7C5CBF;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📊</div>
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:3px;">分析</div>
+        <div style="font-size:12px;color:var(--muted);">試合後・選手別・チーム別のデータ分析</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>
+
+    <!-- チーム管理 -->
+    <div onclick="gotoTeamMgmt()" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:16px;" onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+      <div style="width:52px;height:52px;background:var(--green);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👥</div>
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:3px;">チーム管理</div>
+        <div style="font-size:12px;color:var(--muted);" id="home-team-count">選手情報の登録・編集・Excelインポート</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>
+
+    <!-- 直近の試合 -->
+    <div id="home-recent" style="margin-top:8px;"></div>
+  </div>
+</div>
+
+<!-- ===== ANALYSIS HOME SCREEN ===== -->
+<div id="screen-analysis-home" class="screen">
+  <div class="page" style="max-width:700px;">
+    <div class="page-title">📊 分析</div>
+
+    <div onclick="switchAnalysisMode('game')" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;" onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='var(--white)'">
+      <div style="font-size:28px;">📋</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;">試合別分析</div>
+        <div style="font-size:12px;color:var(--muted);">記録した試合のスコア・投球データを分析する<br><span id="ah-game-count" style="color:var(--blue);font-weight:600;"></span></div>
+      </div>
+      <div style="margin-left:auto;color:var(--muted);">›</div>
+    </div>
+
+    <div onclick="switchAnalysisMode('player')" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;" onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='var(--white)'">
+      <div style="font-size:28px;">🧑</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;">選手別分析</div>
+        <div style="font-size:12px;color:var(--muted);">個々の選手の打撃・投球データを複数試合にわたって分析する</div>
+      </div>
+      <div style="margin-left:auto;color:var(--muted);">›</div>
+    </div>
+
+    <div onclick="switchAnalysisMode('team')" style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:14px;" onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='var(--white)'">
+      <div style="font-size:28px;">🏟️</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;">チーム別分析</div>
+        <div style="font-size:12px;color:var(--muted);">チーム全体の傾向・強み・弱点を分析する</div>
+      </div>
+      <div style="margin-left:auto;color:var(--muted);">›</div>
+    </div>
+
+    <div style="background:var(--amber-light);border:1px solid #f0d090;border-radius:10px;padding:12px 14px;font-size:12px;color:#7a5010;margin-top:8px;">
+      💡 試合入力でデータを記録してから分析を開きてください。複数試合のデータが蓄積されると選手別・チーム別分析がより有効になります。
+    </div>
+  </div>
+</div>
   <div class="page">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
       <div class="page-title" style="margin:0;">チーム登録</div>
@@ -572,6 +648,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 // ===== GLOBAL STATE =====
 let teams = [
@@ -673,18 +750,235 @@ function importExcel(input){
   reader.readAsArrayBuffer(file);
 }
 
-// ===== TABS =====
-function gotoTab(tab) {
-  document.getElementById('global-nav').style.display='flex';
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach((t,i)=>{
-    t.classList.toggle('active', ['game','team','setup'][i]===tab);
-  });
-  document.getElementById('screen-'+tab).classList.add('active');
-  if(tab==='team') renderTeams();
-  if(tab==='setup') renderSetup();
+// ===== NAVIGATION =====
+const ALL_SCREENS = ['home','team','setup','game','analysis-home','analysis','analysis-player','analysis-team'];
+
+function showScreen(name){
+  ALL_SCREENS.forEach(s=>{ const el=document.getElementById('screen-'+s); if(el) el.classList.remove('active'); });
+  const target = document.getElementById('screen-'+name);
+  if(target) target.classList.add('active');
+  // header
+  const hdr = document.getElementById('global-header');
+  const backBtn = document.getElementById('back-btn');
+  const titleEl = document.getElementById('header-title');
+  const actionsEl = document.getElementById('header-actions');
+  if(name==='home'){
+    hdr.style.display='none';
+  } else {
+    hdr.style.display='flex';
+    const titles={'team':'チーム管理','setup':'試合設定','game':'試合入力','analysis-home':'分析','analysis':'試合別分析','analysis-player':'選手別分析','analysis-team':'チーム別分析'};
+    titleEl.textContent = '⚾ ' + (titles[name]||'PixelScore');
+    backBtn.style.display = 'inline-block';
+  }
+  actionsEl.innerHTML='';
+  if(name==='game'){
+    actionsEl.innerHTML=`<button class="hdr-btn" onclick="exportCSV()">CSV出力</button>`;
+  }
 }
-function gotoSetup(){gotoTab('setup');}
+
+function gotoHome(){
+  showScreen('home');
+  renderHomeStats();
+}
+function gotoSetupFromHome(){
+  showScreen('setup');
+  renderSetup();
+}
+function gotoTeamMgmt(){
+  showScreen('team');
+  renderTeams();
+}
+function gotoAnalysisHome(){
+  showScreen('analysis-home');
+  renderAnalysisHome();
+}
+function switchAnalysisMode(mode){
+  if(mode==='game'){ showScreen('analysis'); renderAnalysis(); }
+  else if(mode==='player'){ showScreen('analysis-player'); initPlayerAnalysis(); }
+  else if(mode==='team'){ showScreen('analysis-team'); initTeamAnalysis(); }
+}
+function gotoSetup(){ showScreen('setup'); renderSetup(); }
+// legacy
+function gotoTab(tab){
+  if(tab==='team') gotoTeamMgmt();
+  else if(tab==='setup') gotoSetupFromHome();
+  else if(tab==='game'){ showScreen('game'); }
+  else if(tab==='analysis') switchAnalysisMode('game');
+}
+
+function renderHomeStats(){
+  // チーム数バッジ
+  const tc = document.getElementById('home-team-count');
+  if(tc) tc.textContent = teams.length ? `${teams.length}チーム・${teams.reduce((a,t)=>a+t.players.length,0)}名登録済み` : '選手情報の登録・編集・Excelインポート';
+  // 直近試合
+  const recent = document.getElementById('home-recent');
+  if(recent && pitchLog.length){
+    recent.innerHTML=`<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;">直近の記録</div>
+      <div style="font-size:13px;color:var(--text);">${game.title||'試合中'} — ${pitchLog.length}球記録済み</div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn btn-primary" onclick="showScreen('game')" style="font-size:12px;">入力を続ける</button>
+        <button class="btn" onclick="gotoAnalysisHome()" style="font-size:12px;">分析を見る</button>
+      </div>
+    </div>`;
+  } else if(recent){
+    recent.innerHTML='';
+  }
+}
+
+function renderAnalysisHome(){
+  const cnt = document.getElementById('ah-game-count');
+  if(cnt) cnt.textContent = pitchLog.length ? `現在 ${pitchLog.length}球のデータがあります` : 'まだデータがありません';
+}
+
+// ===== PLAYER ANALYSIS =====
+function initPlayerAnalysis(){
+  const batters = [...new Set(pitchLog.map(p=>p.batter).filter(Boolean))];
+  const pitchers = [...new Set(pitchLog.map(p=>p.pitcher).filter(Boolean))];
+  const all = [...new Set([...batters,...pitchers])];
+  const sel = document.getElementById('player-sel');
+  sel.innerHTML = all.map(n=>`<option value="${n}">${n}</option>`).join('');
+  renderPlayerAnalysis();
+}
+
+function renderPlayerAnalysis(){
+  const name = document.getElementById('player-sel')?.value;
+  const role = document.getElementById('player-role')?.value||'batter';
+  if(!name) return;
+
+  if(role==='batter'){
+    const logs = pitchLog.filter(p=>p.batter===name);
+    const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const hits = logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+    const hrs = logs.filter(p=>p.hitResult==='本塁打').length;
+    const kk = logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
+    const bb = logs.filter(p=>['四球','死球'].includes(p.result)).length;
+    document.getElementById('player-stats').innerHTML=[
+      ['打数',ab,''],['安打',hits,''],
+      ['打率',ab?'.'+String(Math.round(hits/ab*1000)).padStart(3,'0'):'—',''],
+      ['本塁打',hrs,''],['三振',kk,''],['四死球',bb,''],
+      ['総対戦球',logs.length+'球',''],['出塁率',((hits+bb)&&(ab+bb)?'.'+String(Math.round((hits+bb)/(ab+bb)*1000)).padStart(3,'0'):'—'),''],
+    ].slice(0,4).map(([l,v,s])=>`<div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val">${v}</div><div class="a-stat-sub">${s}</div></div>`).join('');
+
+    renderZoneChart('chart-player-zone', logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)), null);
+
+    // 球種別
+    const ptRes={};
+    logs.forEach(p=>{
+      if(!p.pitchType) return;
+      if(!ptRes[p.pitchType]) ptRes[p.pitchType]={h:0,o:0,k:0};
+      if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)) ptRes[p.pitchType].h++;
+      else if(['見逃し三振','空振り三振'].includes(p.result)) ptRes[p.pitchType].k++;
+      else ptRes[p.pitchType].o++;
+    });
+    const ptK=Object.keys(ptRes);
+    mkChart('chart-player-pitch','bar',{labels:ptK,datasets:[
+      {label:'安打',data:ptK.map(k=>ptRes[k].h),backgroundColor:'#1E7EC8',stack:'s'},
+      {label:'三振',data:ptK.map(k=>ptRes[k].k),backgroundColor:'#E03F3F',stack:'s'},
+      {label:'その他',data:ptK.map(k=>ptRes[k].o),backgroundColor:'#DDE3EC',stack:'s'},
+    ]},{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}});
+
+    // 試合別（イニング別）打率推移
+    const innings=[...new Set(pitchLog.map(p=>p.inning))].sort((a,b)=>Number(a)-Number(b));
+    const trendData=innings.map(inn=>{
+      const l=pitchLog.filter(p=>p.batter===name&&p.inning==inn);
+      const a=l.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト'].includes(p.hitResult)).length;
+      const h=l.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+      return a?Math.round(h/a*1000):null;
+    });
+    mkChart('chart-player-trend','line',{
+      labels:innings.map(i=>i+'回'),
+      datasets:[{label:'打率(×1000)',data:trendData,borderColor:'#1E7EC8',backgroundColor:'rgba(30,126,200,0.1)',tension:0.3,spanGaps:true}]
+    },{scales:{y:{beginAtZero:true,max:1000}}});
+  }
+}
+
+// ===== TEAM ANALYSIS =====
+function initTeamAnalysis(){
+  const teamNames = [...new Set([
+    ...pitchLog.map(p=>p.batter?game.teamA?.name:null).filter(Boolean),
+    game.teamA?.name, game.teamB?.name
+  ].filter(Boolean))];
+  const sel = document.getElementById('team-sel');
+  sel.innerHTML = teamNames.map(n=>`<option value="${n}">${n}</option>`).join('');
+  renderTeamAnalysis();
+}
+
+function renderTeamAnalysis(){
+  const teamName = document.getElementById('team-sel')?.value;
+  if(!teamName) return;
+
+  // このチームが攻撃側（打者）のログを分析
+  const isTeamA = teamName===game.teamA?.name;
+  const logs = pitchLog.filter(p=> isTeamA ? p.tb==='表' : p.tb==='裏');
+
+  const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+  const hits = logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+  const hrs = logs.filter(p=>p.hitResult==='本塁打').length;
+  const kk = logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
+  const bb = logs.filter(p=>['四球','死球'].includes(p.result)).length;
+  const runs = logs.reduce((a,p)=>a+(p.runs||0),0);
+
+  document.getElementById('team-stats').innerHTML=[
+    ['総得点',runs+'点',''],['チーム打率',ab?'.'+String(Math.round(hits/ab*1000)).padStart(3,'0'):'—',`${hits}/${ab}`],
+    ['チーム本塁打',hrs+'本',''],['三振数',kk+'個',''],['四死球',bb+'個',''],['総投球数',logs.length+'球',''],
+  ].slice(0,4).map(([l,v,s])=>`<div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val">${v}</div><div class="a-stat-sub">${s}</div></div>`).join('');
+
+  // 打者ごとの打率
+  const batters=[...new Set(logs.map(p=>p.batter).filter(Boolean))];
+  const batterAvg=batters.map(b=>{
+    const bl=logs.filter(p=>p.batter===b);
+    const a=bl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const h=bl.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+    return{name:b,avg:a?Math.round(h/a*1000):0,ab:a,hits:h};
+  }).sort((a,b)=>b.avg-a.avg);
+  mkChart('chart-team-avg','bar',{
+    labels:batterAvg.map(b=>b.name),
+    datasets:[{label:'打率(×1000)',data:batterAvg.map(b=>b.avg),backgroundColor:'#1E7EC8',borderRadius:4}]
+  },{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:1000}}});
+
+  // 打球落下点
+  const fieldCanvas=document.getElementById('chart-team-field');
+  if(fieldCanvas){
+    const fieldCtx=fieldCanvas.getContext('2d');
+    const W=fieldCanvas.width,H=fieldCanvas.height;
+    const cx=W/2,cy=H-12,s=Math.min(W,H)*0.21,ofR=s*3.65;
+    fieldCtx.clearRect(0,0,W,H);
+    fieldCtx.fillStyle='#253d18';fieldCtx.fillRect(0,0,W,H);
+    fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);
+    fieldCtx.arc(cx,cy,ofR,Math.PI*1.25,Math.PI*1.75,false);
+    fieldCtx.closePath();fieldCtx.fillStyle='#3d6b27';fieldCtx.fill();
+    fieldCtx.beginPath();fieldCtx.arc(cx,cy,s*1.02,0,Math.PI*2);fieldCtx.fillStyle='#7a5a12';fieldCtx.fill();
+    fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);fieldCtx.lineTo(cx+s,cy-s);fieldCtx.lineTo(cx,cy-s*2);fieldCtx.lineTo(cx-s,cy-s);fieldCtx.closePath();fieldCtx.fillStyle='#3d6b27';fieldCtx.fill();
+    fieldCtx.beginPath();fieldCtx.arc(cx,cy,ofR,Math.PI*1.25,Math.PI*1.75,false);fieldCtx.strokeStyle='#fff';fieldCtx.lineWidth=2;fieldCtx.stroke();
+    fieldCtx.strokeStyle='#fff';fieldCtx.lineWidth=1.5;
+    fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);fieldCtx.lineTo(cx-ofR,cy-ofR);fieldCtx.stroke();
+    fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);fieldCtx.lineTo(cx+ofR,cy-ofR);fieldCtx.stroke();
+    const C={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#FFD700','内野安打':'#5BA8E0','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#A32D2D','ファール':'#F5A623'};
+    logs.filter(p=>p.fieldX&&p.fieldY).forEach(p=>{
+      const sx=p.fieldX*(W/310),sy=p.fieldY*(H/300);
+      fieldCtx.beginPath();fieldCtx.arc(sx,sy,5,0,Math.PI*2);
+      fieldCtx.fillStyle=C[p.hitResult]||C[p.result]||'#aaa';fieldCtx.fill();
+      fieldCtx.strokeStyle='rgba(255,255,255,0.6)';fieldCtx.lineWidth=1;fieldCtx.stroke();
+    });
+  }
+
+  // 球種別被打率
+  const pitchTypes=[...new Set(logs.map(p=>p.pitchType).filter(Boolean))];
+  const ptAvg=pitchTypes.map(pt=>{
+    const pl=logs.filter(p=>p.pitchType===pt);
+    const a=pl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const h=pl.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+    return{pt,avg:a?Math.round(h/a*1000):0};
+  });
+  mkChart('chart-team-pitch-avg','bar',{
+    labels:ptAvg.map(p=>p.pt),
+    datasets:[{label:'被打率(×1000)',data:ptAvg.map(p=>p.avg),backgroundColor:'#E03F3F',borderRadius:4}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:1000}}});
+
+  // コース別被打率（ゾーン）
+  renderZoneChart('chart-team-zone', logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)), null);
+}
 
 // ===== TEAM MASTER =====
 function renderTeams() {
@@ -874,6 +1168,7 @@ function startGame() {
   });
 
   gotoTab('game');
+  showScreen('game');
   initGame();
 }
 
@@ -1976,11 +2271,490 @@ function exportCSV(){
   a.click();
 }
 
+// ===== ANALYSIS =====
+let activeCharts = {};
+function destroyChart(id){ if(activeCharts[id]){activeCharts[id].destroy();delete activeCharts[id];} }
+
+function switchAnalysis(tab){
+  document.querySelectorAll('.a-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.atab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('a-'+tab).style.display='block';
+  document.querySelector(`.atab[onclick*="${tab}"]`).classList.add('active');
+  if(tab==='pitcher') renderPitcherAnalysis();
+  if(tab==='batter') renderBatterSelect();
+  if(tab==='field') renderFieldAnalysis();
+  if(tab==='inning') renderInningAnalysis();
+  if(tab==='flow') renderFlowAnalysis();
+}
+
+function renderAnalysis(){
+  const meta = document.getElementById('analysis-meta');
+  meta.textContent = `${game.title||'試合'} ／ ${pitchLog.length}球記録済み`;
+  if(!pitchLog.length){ meta.textContent+=' (データなし)'; return; }
+  renderPitcherAnalysis();
+}
+
+const PITCH_COLORS_A = ['#1E7EC8','#2EAA6E','#E03F3F','#F5A623','#7C5CBF','#0A2744','#D4537E','#8A95A3','#639922'];
+const PITCH_TYPES = ['ストレート','ツーシーム','スライダー','カットボール','カーブ','フォーク','チェンジアップ','シンカー','特殊球'];
+
+function mkChart(id, type, data, options={}){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  activeCharts[id] = new Chart(ctx, {type, data, options:{responsive:true, plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}}, ...options}});
+}
+
+// ── 投手分析 ──
+function renderPitcherAnalysis(){
+  const logs = pitchLog;
+  if(!logs.length) return;
+  const total = logs.length;
+  const strikes = logs.filter(p=>['見逃しスト','空振り','ファール','ファールチップ','見逃し三振','空振り三振'].includes(p.result)).length;
+  const ks = logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
+  const bbs = logs.filter(p=>['四球','死球'].includes(p.result)).length;
+  const speeds = logs.filter(p=>p.speed).map(p=>p.speed);
+  const avgSpd = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b,0)/speeds.length) : 0;
+  const maxSpd = speeds.length ? Math.max(...speeds) : 0;
+
+  document.getElementById('pitcher-stats').innerHTML = [
+    ['総投球数', total+'球', ''],
+    ['ストライク率', total?Math.round(strikes/total*100)+'%':'—', `${strikes}/${total}`],
+    ['三振', ks+'個', ''],
+    ['四死球', bbs+'個', ''],
+    ['最速', maxSpd?maxSpd+'km/h':'—', avgSpd?`平均${avgSpd}km/h`:''],
+  ].map(([l,v,s])=>`<div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val">${v}</div><div class="a-stat-sub">${s}</div></div>`).join('');
+
+  // 球種割合
+  const ptCount = {};
+  logs.forEach(p=>{ if(p.pitchType) ptCount[p.pitchType]=(ptCount[p.pitchType]||0)+1; });
+  const ptKeys = Object.keys(ptCount);
+  mkChart('chart-pitch-type','doughnut',{
+    labels: ptKeys,
+    datasets:[{data:ptKeys.map(k=>ptCount[k]), backgroundColor:PITCH_COLORS_A.slice(0,ptKeys.length), borderWidth:2}]
+  });
+
+  // ゾーン分布
+  renderZoneChart('chart-zone', logs, null);
+
+  // カウント別球種
+  const countLabels = ['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+  const countData = {};
+  PITCH_TYPES.forEach(pt=>{ countData[pt]=countLabels.map(()=>0); });
+  logs.forEach(p=>{
+    const bso = p.bso||'0-0-0';
+    const [b,s] = bso.split('-');
+    const key = `${b}-${s}`;
+    const idx = countLabels.indexOf(key);
+    if(idx>-1 && p.pitchType && countData[p.pitchType]) countData[p.pitchType][idx]++;
+  });
+  const activeTypes = PITCH_TYPES.filter(pt=>logs.some(p=>p.pitchType===pt));
+  mkChart('chart-count-pitch','bar',{
+    labels: countLabels,
+    datasets: activeTypes.map((pt,i)=>({label:pt,data:countData[pt],backgroundColor:PITCH_COLORS_A[i],stack:'s'}))
+  },{plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:12}}},scales:{x:{stacked:true},y:{stacked:true}}});
+
+  // 結果内訳
+  const resCount = {};
+  logs.forEach(p=>{ if(p.result) resCount[p.result]=(resCount[p.result]||0)+1; });
+  const resKeys = Object.keys(resCount).sort((a,b)=>resCount[b]-resCount[a]);
+  mkChart('chart-result','bar',{
+    labels: resKeys,
+    datasets:[{data:resKeys.map(k=>resCount[k]),backgroundColor:'#1E7EC8',borderRadius:4}]
+  },{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}});
+}
+
+// ゾーンチャート（ストライクゾーン9分割ヒートマップ）
+function renderZoneChart(canvasId, logs, batterFilter){
+  const canvas = document.getElementById(canvasId);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const filtered = batterFilter ? logs.filter(p=>p.batter===batterFilter) : logs;
+  const zoneCnt = {};
+  filtered.forEach(p=>{ if(typeof p.zone==='number') zoneCnt[p.zone]=(zoneCnt[p.zone]||0)+1; });
+  const maxZ = Math.max(...Object.values(zoneCnt), 1);
+
+  ctx.clearRect(0,0,W,H);
+  const pad=20, cellW=(W-pad*2)/3, cellH=(H-pad*2)/3;
+
+  for(let row=0;row<3;row++){
+    for(let col=0;col<3;col++){
+      const z = row*3+col+1;
+      const cnt = zoneCnt[z]||0;
+      const alpha = cnt/maxZ;
+      const x=pad+col*cellW, y=pad+row*cellH;
+      ctx.fillStyle=`rgba(30,126,200,${0.08+alpha*0.85})`;
+      ctx.fillRect(x,y,cellW,cellH);
+      ctx.strokeStyle='rgba(30,126,200,0.4)';
+      ctx.lineWidth=1;
+      ctx.strokeRect(x,y,cellW,cellH);
+      ctx.fillStyle=alpha>0.5?'#fff':'#0A2744';
+      ctx.font='bold 13px sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(cnt?cnt:'', x+cellW/2, y+cellH/2);
+      ctx.font='9px sans-serif';
+      ctx.fillStyle='rgba(0,0,0,0.35)';
+      ctx.fillText(z, x+cellW/2, y+cellH/2+14);
+    }
+  }
+  // 外枠ラベル
+  ctx.fillStyle='#555';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('高め',W/2,10);
+  ctx.fillText('低め',W/2,H-10);
+  ctx.textAlign='right';ctx.fillText('内',pad-4,H/2);
+  ctx.textAlign='left';ctx.fillText('外',W-pad+4,H/2);
+}
+
+// ── 打者分析 ──
+function renderBatterSelect(){
+  const sel = document.getElementById('batter-sel');
+  const batters = [...new Set(pitchLog.map(p=>p.batter).filter(Boolean))];
+  sel.innerHTML = batters.map(b=>`<option value="${b}">${b}</option>`).join('');
+  renderBatterAnalysis();
+}
+
+function renderBatterAnalysis(){
+  const batter = document.getElementById('batter-sel')?.value;
+  if(!batter) return;
+  const logs = pitchLog.filter(p=>p.batter===batter);
+  const total=logs.length;
+  const ab=logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)).length;
+  const hits=logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+  const avg=ab?`.${String(Math.round(hits/ab*1000)).padStart(3,'0')}`:'—';
+  const swing=logs.filter(p=>['空振り','見逃し三振','空振り三振'].includes(p.result)).length;
+
+  document.getElementById('batter-stats').innerHTML = [
+    ['対戦投球数', total+'球',''],
+    ['打率', avg, `${hits}安打/${ab}打数`],
+    ['三振', logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length+'個',''],
+    ['四死球', logs.filter(p=>['四球','死球'].includes(p.result)).length+'個',''],
+    ['空振り率', total?Math.round(swing/total*100)+'%':'—',''],
+  ].map(([l,v,s])=>`<div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val">${v}</div><div class="a-stat-sub">${s}</div></div>`).join('');
+
+  // コース別結果ヒートマップ
+  renderZoneChart('chart-batter-zone', logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)), null);
+
+  // 球種別結果
+  const ptRes = {};
+  logs.forEach(p=>{
+    if(!p.pitchType) return;
+    if(!ptRes[p.pitchType]) ptRes[p.pitchType]={hit:0,out:0,other:0};
+    if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)) ptRes[p.pitchType].hit++;
+    else if(['ゴロアウト','フライアウト','ライナーアウト','ゲッツー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)) ptRes[p.pitchType].out++;
+    else ptRes[p.pitchType].other++;
+  });
+  const ptKeys=Object.keys(ptRes);
+  mkChart('chart-batter-pitch','bar',{
+    labels:ptKeys,
+    datasets:[
+      {label:'安打',data:ptKeys.map(k=>ptRes[k].hit),backgroundColor:'#1E7EC8',stack:'s'},
+      {label:'アウト',data:ptKeys.map(k=>ptRes[k].out),backgroundColor:'#E03F3F',stack:'s'},
+      {label:'その他',data:ptKeys.map(k=>ptRes[k].other),backgroundColor:'#DDE3EC',stack:'s'},
+    ]
+  },{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}}});
+}
+
+// ── 打球分布 ──
+function renderFieldAnalysis(){
+  const filter = document.getElementById('field-filter')?.value||'all';
+  const logs = pitchLog.filter(p=>{
+    if(!p.fieldX||!p.fieldY) return false;
+    if(filter==='hit') return ['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult);
+    if(filter==='out') return ['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult);
+    if(filter==='foul') return p.result==='ファール';
+    return true;
+  });
+
+  const canvas = document.getElementById('chart-field-map');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const cx=W/2, cy=H-14;
+  const s=Math.min(W,H)*0.21;
+  const ofR=s*3.65;
+
+  // フィールドを描画（簡易版）
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#253d18'; ctx.fillRect(0,0,W,H);
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,ofR,Math.PI*1.25,Math.PI*1.75,false);
+  ctx.closePath(); ctx.fillStyle='#3d6b27'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx,cy,s*1.02,0,Math.PI*2); ctx.fillStyle='#7a5a12'; ctx.fill();
+  // ダイヤモンド
+  ctx.beginPath();
+  ctx.moveTo(cx,cy); ctx.lineTo(cx+s,cy-s); ctx.lineTo(cx,cy-s*2); ctx.lineTo(cx-s,cy-s);
+  ctx.closePath(); ctx.fillStyle='#3d6b27'; ctx.fill();
+  // フェンス
+  ctx.beginPath(); ctx.arc(cx,cy,ofR,Math.PI*1.25,Math.PI*1.75,false);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  // ファールライン
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx-ofR*1.08,cy-ofR*1.08); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+ofR*1.08,cy-ofR*1.08); ctx.stroke();
+
+  // ドットを描画（落下点）
+  const COLORS={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#1E7EC8','内野安打':'#1E7EC8','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#E03F3F','犠打':'#7C5CBF','犠飛':'#7C5CBF','エラー':'#F5A623','野選':'#F5A623','ファール':'#F5A623'};
+  logs.forEach(p=>{
+    if(!p.fieldX||!p.fieldY) return;
+    // スケール変換（元の310x300キャンバスから320x310に）
+    const sx=p.fieldX*(W/310), sy=p.fieldY*(H/300);
+    ctx.beginPath(); ctx.arc(sx,sy,6,0,Math.PI*2);
+    ctx.fillStyle=COLORS[p.hitResult]||COLORS[p.result]||'#aaa';
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=1; ctx.stroke();
+  });
+
+  // エリア別集計
+  const areaCnt={};
+  logs.forEach(p=>{ if(p.fieldLabel) areaCnt[p.fieldLabel]=(areaCnt[p.fieldLabel]||0)+1; });
+  const sorted=Object.entries(areaCnt).sort((a,b)=>b[1]-a[1]);
+  const maxA=sorted[0]?.[1]||1;
+  document.getElementById('field-area-table').innerHTML=`
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">計${logs.length}打球</div>
+    ${sorted.map(([k,v])=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;width:64px;">${k}</span>
+        <div style="flex:1;height:16px;background:var(--gray-light);border-radius:3px;overflow:hidden;">
+          <div style="width:${Math.round(v/maxA*100)}%;height:100%;background:#1E7EC8;border-radius:3px;"></div>
+        </div>
+        <span style="font-size:11px;color:var(--muted);min-width:24px;">${v}</span>
+      </div>`).join('')}`;
+}
+
+// ── イニング別 ──
+function renderInningAnalysis(){
+  const innings=[...new Set(pitchLog.map(p=>p.inning))].sort((a,b)=>Number(a)-Number(b));
+  const offTeam=game.teamA?.name||'チームA';
+
+  // 集計
+  const inningData=innings.map(inn=>{
+    const logs=pitchLog.filter(p=>p.inning==inn);
+    const strikes=logs.filter(p=>['見逃しスト','空振り','ファール','ファールチップ','見逃し三振','空振り三振'].includes(p.result)).length;
+    const runs=logs.reduce((a,p)=>a+(p.runs||0),0);
+    return {inn,total:logs.length,strikes,strikeRate:logs.length?Math.round(strikes/logs.length*100):0,runs};
+  });
+
+  document.getElementById('inning-stats').innerHTML=[
+    ['最多投球回',inningData.sort((a,b)=>b.total-a.total)[0]?.inn+'回',''],
+    ['最高ストライク率',Math.max(...inningData.map(d=>d.strikeRate))+'%',''],
+    ['最多失点回',inningData.sort((a,b)=>b.runs-a.runs)[0]?.inn+'回',''],
+  ].map(([l,v,s])=>`<div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val">${v}</div><div class="a-stat-sub">${s}</div></div>`).join('');
+
+  const sortedData=innings.map(inn=>inningData.find(d=>d.inn==inn));
+  mkChart('chart-inning-score','bar',{
+    labels:innings.map(i=>i+'回'),
+    datasets:[{label:'得点',data:sortedData.map(d=>d?.runs||0),backgroundColor:'#1E7EC8',borderRadius:4}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}});
+
+  mkChart('chart-inning-pitch','bar',{
+    labels:innings.map(i=>i+'回'),
+    datasets:[{label:'投球数',data:sortedData.map(d=>d?.total||0),backgroundColor:'#2EAA6E',borderRadius:4}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}});
+
+  // ストライク率推移
+  mkChart('chart-strike-rate','line',{
+    labels:innings.map(i=>i+'回'),
+    datasets:[{label:'ストライク率(%)',data:sortedData.map(d=>d?.strikeRate||0),borderColor:'#E03F3F',backgroundColor:'rgba(224,63,63,0.1)',tension:0.3,fill:true}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}});
+
+  // カウント別球種
+  const countKeys=['0-0','1-0','2-0','3-0','0-1','1-1','2-1','3-1','0-2','1-2','2-2','3-2'];
+  const cntData={};
+  pitchLog.forEach(p=>{ const k=(p.bso||'0-0-0').split('-').slice(0,2).join('-'); cntData[k]=(cntData[k]||0)+1; });
+  mkChart('chart-count-type','bar',{
+    labels:countKeys,
+    datasets:[{label:'投球数',data:countKeys.map(k=>cntData[k]||0),backgroundColor:'#7C5CBF',borderRadius:4}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}});
+}
+
+// ── 試合の流れ ──
+function renderFlowAnalysis(){
+  // 累計得点の推移
+  let cumA=0,cumB=0;
+  const flowLabels=[],flowA=[],flowB=[];
+  const groupedByInning={};
+  pitchLog.forEach(p=>{
+    const key=`${p.inning}回${p.tb}`;
+    if(!groupedByInning[key]) groupedByInning[key]={runs:0,inning:p.inning,tb:p.tb};
+    groupedByInning[key].runs+=(p.runs||0);
+  });
+  Object.entries(groupedByInning).forEach(([key,d])=>{
+    flowLabels.push(key);
+    if(d.tb==='表'){ cumA+=d.runs; } else { cumB+=d.runs; }
+    flowA.push(cumA); flowB.push(cumB);
+  });
+
+  mkChart('chart-score-flow','line',{
+    labels:flowLabels,
+    datasets:[
+      {label:game.teamA?.name||'チームA',data:flowA,borderColor:'#1E7EC8',backgroundColor:'rgba(30,126,200,0.1)',tension:0.2,fill:false,stepped:true},
+      {label:game.teamB?.name||'チームB',data:flowB,borderColor:'#E03F3F',backgroundColor:'rgba(224,63,63,0.1)',tension:0.2,fill:false,stepped:true},
+    ]
+  },{scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}});
+
+  // 投球ログ一覧
+  const tbl=document.getElementById('analysis-log-table');
+  const RESULT_TAG_CLASS={s:'tag-s',b:'tag-b',h:'tag-h',o:'tag-o'};
+  tbl.innerHTML=`<thead><tr>
+    <th>#</th><th>回</th><th>打順</th><th>投手</th><th>打者</th>
+    <th>球種</th><th>球速</th><th>コース</th><th>結果</th><th>打球結果</th><th>得点</th>
+  </tr></thead><tbody>${[...pitchLog].reverse().map(e=>{
+    const cls=RESULT_TAG_CLASS[e.resultType]||'tag-o';
+    return `<tr>
+      <td>${e.num}</td><td>${e.inning}回${e.tb}</td><td>${e.order}番</td>
+      <td>${e.pitcher}</td><td>${e.batter}</td>
+      <td>${e.pitchType||'—'}</td><td>${e.speed?e.speed+'km':'—'}</td>
+      <td>${e.zone||'—'}</td>
+      <td><span class="tag ${cls}">${e.result}</span></td>
+      <td>${e.hitResult||'—'}</td>
+      <td>${e.runs!=null&&e.runs>0?e.runs+'点':'—'}</td>
+    </tr>`;}).join('')}</tbody>`;
+}
+
 // ===== BOOT =====
 window.addEventListener('DOMContentLoaded', function(){
   renderTeams();
   document.getElementById('s-date').value = new Date().toISOString().slice(0,10);
+  showScreen('home');
 });
 </script>
-</body>
+<!-- ===== ANALYSIS SCREEN ===== -->
+<div id="screen-analysis" class="screen">
+  <div class="page" style="max-width:1100px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+      <div class="page-title" style="margin:0;">📊 試合分析</div>
+      <div style="font-size:12px;color:var(--muted);" id="analysis-meta"></div>
+    </div>
+
+    <!-- 分析タブ切り替え -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;" id="analysis-tabs">
+      <button class="atab active" onclick="switchAnalysis('pitcher')">投手分析</button>
+      <button class="atab" onclick="switchAnalysis('batter')">打者分析</button>
+      <button class="atab" onclick="switchAnalysis('field')">打球分布</button>
+      <button class="atab" onclick="switchAnalysis('inning')">イニング別</button>
+      <button class="atab" onclick="switchAnalysis('flow')">試合の流れ</button>
+    </div>
+
+    <!-- 投手分析 -->
+    <div id="a-pitcher" class="a-section">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;" id="pitcher-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="card"><div class="card-title">球種割合</div><canvas id="chart-pitch-type" height="220"></canvas></div>
+        <div class="card"><div class="card-title">投球コース分布（ストライクゾーン）</div><canvas id="chart-zone" width="260" height="260" style="display:block;margin:0 auto;"></canvas></div>
+        <div class="card"><div class="card-title">カウント別球種</div><canvas id="chart-count-pitch" height="220"></canvas></div>
+        <div class="card"><div class="card-title">結果内訳</div><canvas id="chart-result" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 打者分析 -->
+    <div id="a-batter" class="a-section" style="display:none;">
+      <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--muted);">打者を選択</label>
+        <select id="batter-sel" onchange="renderBatterAnalysis()" style="font-size:12px;padding:5px 8px;"></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;" id="batter-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="card"><div class="card-title">コース別打率</div><canvas id="chart-batter-zone" width="260" height="260" style="display:block;margin:0 auto;"></canvas></div>
+        <div class="card"><div class="card-title">球種別結果</div><canvas id="chart-batter-pitch" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 打球分布 -->
+    <div id="a-field" class="a-section" style="display:none;">
+      <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--muted);">表示</label>
+        <select id="field-filter" onchange="renderFieldAnalysis()" style="font-size:12px;padding:5px 8px;">
+          <option value="all">全打球</option>
+          <option value="hit">安打のみ</option>
+          <option value="out">アウトのみ</option>
+          <option value="foul">ファールのみ</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="card"><div class="card-title">落下点マップ</div><canvas id="chart-field-map" width="320" height="310" style="display:block;margin:0 auto;"></canvas></div>
+        <div class="card"><div class="card-title">エリア別集計</div><div id="field-area-table"></div></div>
+      </div>
+    </div>
+
+    <!-- イニング別 -->
+    <div id="a-inning" class="a-section" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;" id="inning-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="card"><div class="card-title">イニング別得点</div><canvas id="chart-inning-score" height="220"></canvas></div>
+        <div class="card"><div class="card-title">イニング別投球数</div><canvas id="chart-inning-pitch" height="220"></canvas></div>
+        <div class="card"><div class="card-title">カウント別球種傾向</div><canvas id="chart-count-type" height="220"></canvas></div>
+        <div class="card"><div class="card-title">ストライク率推移（イニング別）</div><canvas id="chart-strike-rate" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 試合の流れ -->
+    <div id="a-flow" class="a-section" style="display:none;">
+      <div class="card" style="margin-bottom:12px;"><div class="card-title">スコア推移</div><canvas id="chart-score-flow" height="200"></canvas></div>
+      <div class="card"><div class="card-title">投球ログ一覧</div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto;">
+          <table class="log-tbl" id="analysis-log-table" style="font-size:11px;"></table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.atab{padding:6px 14px;font-size:12px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--muted);cursor:pointer;}
+.atab:hover{background:var(--gray-light);}
+.atab.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.a-section{}
+.a-stat-card{background:var(--gray-light);border-radius:8px;padding:10px 14px;}
+.a-stat-label{font-size:11px;color:var(--muted);margin-bottom:3px;}
+.a-stat-val{font-size:22px;font-weight:700;color:var(--navy);}
+.a-stat-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+</style>
+
+<!-- ===== PLAYER ANALYSIS SCREEN ===== -->
+<div id="screen-analysis-player" class="screen">
+  <div class="page" style="max-width:1000px;">
+    <div class="page-title">🧑 選手別分析</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px;color:var(--muted);">選手</label>
+        <select id="player-sel" onchange="renderPlayerAnalysis()" style="margin-top:3px;"></select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:var(--muted);">役割</label>
+        <select id="player-role" onchange="renderPlayerAnalysis()" style="margin-top:3px;">
+          <option value="batter">打者として</option>
+          <option value="pitcher">投手として</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="player-stats"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="card"><div class="card-title">コース別成績</div><canvas id="chart-player-zone" width="260" height="260" style="display:block;margin:0 auto;"></canvas></div>
+      <div class="card"><div class="card-title">球種別成績</div><canvas id="chart-player-pitch" height="240"></canvas></div>
+      <div class="card" style="grid-column:1/-1;"><div class="card-title">試合別成績推移</div><canvas id="chart-player-trend" height="180"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TEAM ANALYSIS SCREEN ===== -->
+<div id="screen-analysis-team" class="screen">
+  <div class="page" style="max-width:1000px;">
+    <div class="page-title">🏟️ チーム別分析</div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+      <div>
+        <label style="font-size:11px;color:var(--muted);">チーム</label>
+        <select id="team-sel" onchange="renderTeamAnalysis()" style="margin-top:3px;"></select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;" id="team-stats"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="card"><div class="card-title">打者ごとの打率</div><canvas id="chart-team-avg" height="240"></canvas></div>
+      <div class="card"><div class="card-title">打球落下点（チーム全体）</div><canvas id="chart-team-field" width="300" height="290" style="display:block;margin:0 auto;"></canvas></div>
+      <div class="card"><div class="card-title">球種別被打率</div><canvas id="chart-team-pitch-avg" height="220"></canvas></div>
+      <div class="card"><div class="card-title">コース別被打率</div><canvas id="chart-team-zone" width="260" height="260" style="display:block;margin:0 auto;"></canvas></div>
+    </div>
+  </div>
+</div>
 </html>
