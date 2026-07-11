@@ -361,20 +361,34 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 <!-- ===== GAME INPUT SCREEN ===== -->
 <div id="screen-game" class="screen">
   <div class="hdr">
-    <div>
-      <div style="font-size:10px;color:rgba(255,255,255,.6);" id="hdr-p-label">投手</div>
+    <!-- 投手（タップで交代パネル） -->
+    <div onclick="openPitcherChange()" style="cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;"
+         onmouseenter="this.style.background='rgba(255,255,255,.1)'" onmouseleave="this.style.background=''">
+      <div style="font-size:10px;color:rgba(255,255,255,.6);" id="hdr-p-label">投手 🔄</div>
       <div style="font-size:13px;font-weight:700;" id="hdr-pitcher">—</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.45);" id="hdr-pitcher-sub"></div>
     </div>
-    <div style="color:rgba(255,255,255,.4);">vs</div>
+    <div style="color:rgba(255,255,255,.3);font-size:18px;">|</div>
+    <!-- 打者 -->
     <div>
       <div style="font-size:10px;color:rgba(255,255,255,.6);" id="hdr-b-label">打者</div>
       <div style="font-size:13px;font-weight:700;" id="hdr-batter">—</div>
     </div>
     <div style="font-size:10px;color:rgba(255,255,255,.5);margin-left:4px;" id="hdr-cnt">0球</div>
+    <!-- ランナー -->
+    <div id="hdr-runners" style="display:flex;gap:4px;margin-left:8px;align-items:center;"></div>
     <div style="margin-left:auto;display:flex;gap:6px;">
       <button class="hdr-btn" onclick="gotoTab('setup')">設定</button>
       <button class="export-btn" onclick="exportCSV()">CSV出力</button>
     </div>
+  </div>
+
+  <!-- 投手交代クイックパネル -->
+  <div id="pitcher-change-panel" style="display:none;background:#1a2744;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1);">
+    <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">🔄 投手交代</div>
+    <div id="pitcher-change-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    <button onclick="document.getElementById('pitcher-change-panel').style.display='none'"
+      style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.5);background:none;border:none;cursor:pointer;">キャンセル</button>
   </div>
 
   <div class="scoreboard">
@@ -406,7 +420,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
         <option value="延10">延10</option><option value="延11">延11</option><option value="延12">延12</option>
       </select>
       <select id="sel-tb" onchange="updateSituation()"><option value="表">表</option><option value="裏">裏</option></select>
-      <select id="sel-order" onchange="updateSituation()" style="width:90px;"></select>
+      <select id="sel-order" onchange="onOrderChange()" style="width:90px;"></select>
     </div>
     <div class="runners-wrap">
       <span style="font-size:11px;color:var(--muted);">走者</span>
@@ -440,11 +454,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
         <div class="zone-bg"></div>
         <div class="sz-outer"></div>
         <div class="sz-grid" id="sz-grid"></div>
-        <!-- 4コーナーボール球のみ -->
-        <div class="bz bz-tl" id="bz-oh" onclick="selectBZ('oh','外高')">外高</div>
-        <div class="bz bz-tr" id="bz-ih" onclick="selectBZ('ih','内高')">内高</div>
-        <div class="bz bz-bl" id="bz-ol" onclick="selectBZ('ol','外低')">外低</div>
-        <div class="bz bz-br" id="bz-il" onclick="selectBZ('il','内低')">内低</div>
+        <!-- 4コーナーボール球のみ: 右打ち捕手目線デフォルト（左=内、右=外） -->
+        <div class="bz bz-tl" id="bz-oh" onclick="selectBZ('ih','内高')">内高</div>
+        <div class="bz bz-tr" id="bz-ih" onclick="selectBZ('oh','外高')">外高</div>
+        <div class="bz bz-bl" id="bz-ol" onclick="selectBZ('il','内低')">内低</div>
+        <div class="bz bz-br" id="bz-il" onclick="selectBZ('ol','外低')">外低</div>
       </div>
       <div class="zone-disp" id="zone-disp">—</div>
       <div class="batter-tog">
@@ -557,9 +571,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
             <button class="hr-btn hr-hit" onclick="selectHitResult(this,'三塁打')">三塁打</button>
             <button class="hr-btn hr-hit" onclick="selectHitResult(this,'本塁打')">本塁打</button>
             <button class="hr-btn hr-hit" onclick="selectHitResult(this,'内野安打')">内野安打</button>
-            <button class="hr-btn hr-out" onclick="selectHitResult(this,'ゴロアウト')">ゴロアウト</button>
-            <button class="hr-btn hr-out" onclick="selectHitResult(this,'フライアウト')">フライアウト</button>
-            <button class="hr-btn hr-out" onclick="selectHitResult(this,'ライナーアウト')">ライナーアウト</button>
+            <button class="hr-btn hr-out" onclick="selectHitResult(this,'凡打')">凡打</button>
             <button class="hr-btn hr-out" onclick="selectHitResult(this,'ゲッツー')">ゲッツー</button>
             <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠打')">犠打</button>
             <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠飛')">犠飛</button>
@@ -591,6 +603,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <button class="or-btn" onclick="selectRun(this,3)">3点</button>
           <button class="or-btn" onclick="selectRun(this,4)">4点</button>
         </div>
+        <!-- 打点/得点の種別 -->
+        <div id="run-type-panel" style="display:none;margin-top:6px;padding:6px 8px;background:var(--amber-light);border-radius:6px;border:1px solid #f0d090;">
+          <div style="font-size:10px;color:#7a5010;font-weight:600;margin-bottom:4px;">得点の種類</div>
+          <div style="display:flex;gap:4px;">
+            <button class="or-btn" id="rtype-rbi" onclick="setRunType('rbi')" style="flex:1;font-size:11px;">打点（バッターの貢献）</button>
+            <button class="or-btn" id="rtype-run" onclick="setRunType('run')" style="flex:1;font-size:11px;">得点（走者が還る）</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -598,16 +618,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     <div class="panel">
       <div class="ptitle">⚾ 確定</div>
       <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:6px;">✓ 投球結果のみで確定可能</div>
-      <!-- Runner display -->
-      <div style="background:var(--gray-light);border-radius:8px;padding:8px;margin-bottom:8px;">
-        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:5px;">走者</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;" id="runner-chips">
-          <div id="rc1" style="font-size:10px;padding:3px 4px;border-radius:5px;background:#eee;color:#aaa;text-align:center;">1塁 空</div>
-          <div id="rc2" style="font-size:10px;padding:3px 4px;border-radius:5px;background:#eee;color:#aaa;text-align:center;">2塁 空</div>
-          <div id="rc3" style="font-size:10px;padding:3px 4px;border-radius:5px;background:#eee;color:#aaa;text-align:center;">3塁 空</div>
+      <!-- ミニダイヤモンド図（走者・矢印表示） -->
+      <div style="background:#1a2a1a;border-radius:8px;padding:6px;margin-bottom:8px;text-align:center;">
+        <div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px;">走者をタップして進塁</div>
+        <canvas id="mini-diamond" width="160" height="140" style="display:block;margin:0 auto;cursor:pointer;" onclick="onMiniDiamondClick(event)"></canvas>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:4px;" id="runner-chips">
+          <div id="rc1" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">1塁 空</div>
+          <div id="rc2" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">2塁 空</div>
+          <div id="rc3" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">3塁 空</div>
         </div>
       </div>
       <div class="cf-list" id="cf-list"></div>
+      <!-- 進塁結果表示（確定後） -->
+      <div id="runner-result-box" style="display:none;margin-bottom:8px;background:var(--amber-light);border:1.5px solid #f0d090;border-radius:8px;padding:8px 10px;">
+        <div style="font-size:11px;font-weight:700;color:#7a5010;margin-bottom:4px;">📍 走者の動き</div>
+        <div id="runner-result-text" style="font-size:12px;color:#5a3a08;line-height:1.8;"></div>
+      </div>
       <!-- Player substitution -->
       <div style="margin-bottom:6px;">
         <button class="btn" style="width:100%;font-size:11px;padding:5px;" onclick="toggleSubPanel()">🔄 選手交代</button>
@@ -656,7 +682,7 @@ let teams = [
   {id:'t1', name:'チームA', players:[]},
   {id:'t2', name:'チームB', players:[]}
 ];
-let game = {title:'',date:'',place:'',teamA:null,teamB:null,orderA:[],orderB:[]};
+let game = {title:'',date:'',place:'',teamA:null,teamB:null,orderA:[],orderB:[],dhA:false,dhB:false,dhPlayerA:null,dhPlayerB:null};
 let pitchLog = [];
 let scores = {a:Array(9).fill(null), b:Array(9).fill(null)};
 let hits={a:0,b:0}, errs={a:0,b:0};
@@ -679,11 +705,12 @@ let cur = {
   runners:[false,false,false],
   runnerIds:[null,null,null],
   view:'catcher', batterSide:'right',
-  editingNum: null
+  editingNum: null,
+  runType: null
 };
 
 // ===== EXCEL IMPORT / EXPORT =====
-const TEMPLATE_B64 = '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';
+const TEMPLATE_B64 = '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';
 
 function downloadTemplate(){
   const binary = atob(TEMPLATE_B64);
@@ -721,8 +748,8 @@ function importExcel(input){
             name: String(r[0]||''),
             num:  String(r[1]||''),
             pos:  String(r[2]||'—'),
-            bat:  String(r[3]||'右'),
-            throw: String(r[4]||'右'),
+            bat:  String(r[3]||'—').replace('右打ち','右').replace('左打ち','左').replace('両打ち','両'),
+            throw: String(r[4]||'—').replace('右投げ','右').replace('左投げ','左'),
           }));
       }
 
@@ -742,6 +769,7 @@ function importExcel(input){
       if(teamBName !== teamAName) upsertTeam(teamBName, playersB);
 
       renderTeams();
+      autoSave();
       alert(`✅ 読み込み完了！\n${teamAName}：${playersA.length}名\n${teamBName}：${playersB.length}名`);
     } catch(err){
       alert('読み込みに失敗しました。Excelテンプレートのファイルか確認してください。\n'+err.message);
@@ -849,7 +877,7 @@ function renderPlayerAnalysis(){
 
   if(role==='batter'){
     const logs = pitchLog.filter(p=>p.batter===name);
-    const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
     const hits = logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
     const hrs = logs.filter(p=>p.hitResult==='本塁打').length;
     const kk = logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
@@ -883,7 +911,7 @@ function renderPlayerAnalysis(){
     const innings=[...new Set(pitchLog.map(p=>p.inning))].sort((a,b)=>Number(a)-Number(b));
     const trendData=innings.map(inn=>{
       const l=pitchLog.filter(p=>p.batter===name&&p.inning==inn);
-      const a=l.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト'].includes(p.hitResult)).length;
+      const a=l.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト'].includes(p.hitResult)).length;
       const h=l.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
       return a?Math.round(h/a*1000):null;
     });
@@ -913,7 +941,7 @@ function renderTeamAnalysis(){
   const isTeamA = teamName===game.teamA?.name;
   const logs = pitchLog.filter(p=> isTeamA ? p.tb==='表' : p.tb==='裏');
 
-  const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+  const ab = logs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
   const hits = logs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
   const hrs = logs.filter(p=>p.hitResult==='本塁打').length;
   const kk = logs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
@@ -929,7 +957,7 @@ function renderTeamAnalysis(){
   const batters=[...new Set(logs.map(p=>p.batter).filter(Boolean))];
   const batterAvg=batters.map(b=>{
     const bl=logs.filter(p=>p.batter===b);
-    const a=bl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const a=bl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
     const h=bl.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
     return{name:b,avg:a?Math.round(h/a*1000):0,ab:a,hits:h};
   }).sort((a,b)=>b.avg-a.avg);
@@ -955,7 +983,7 @@ function renderTeamAnalysis(){
     fieldCtx.strokeStyle='#fff';fieldCtx.lineWidth=1.5;
     fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);fieldCtx.lineTo(cx-ofR,cy-ofR);fieldCtx.stroke();
     fieldCtx.beginPath();fieldCtx.moveTo(cx,cy);fieldCtx.lineTo(cx+ofR,cy-ofR);fieldCtx.stroke();
-    const C={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#FFD700','内野安打':'#5BA8E0','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#A32D2D','ファール':'#F5A623'};
+    const C={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#FFD700','内野安打':'#5BA8E0','凡打':'#E03F3F','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#A32D2D','ファール':'#F5A623'};
     logs.filter(p=>p.fieldX&&p.fieldY).forEach(p=>{
       const sx=p.fieldX*(W/310),sy=p.fieldY*(H/300);
       fieldCtx.beginPath();fieldCtx.arc(sx,sy,5,0,Math.PI*2);
@@ -968,7 +996,7 @@ function renderTeamAnalysis(){
   const pitchTypes=[...new Set(logs.map(p=>p.pitchType).filter(Boolean))];
   const ptAvg=pitchTypes.map(pt=>{
     const pl=logs.filter(p=>p.pitchType===pt);
-    const a=pl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const a=pl.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
     const h=pl.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
     return{pt,avg:a?Math.round(h/a*1000):0};
   });
@@ -1001,7 +1029,7 @@ function renderTeams() {
         <thead><tr>
           <th style="width:28px;text-align:center;">#</th>
           <th style="text-align:left;">選手名</th>
-          <th>背番号</th><th>ポジション</th><th>投打</th><th>利き腕</th><th style="width:28px;"></th>
+          <th>背番号</th><th>ポジション</th><th>打席</th><th>投げる腕</th><th style="width:28px;"></th>
         </tr></thead>
         <tbody id="player-body-${ti}">
           ${team.players.map((p,pi)=>playerRow(ti,pi,p)).join('')}
@@ -1019,10 +1047,15 @@ function playerRow(ti,pi,p){
       ${['投手','捕手','一塁手','二塁手','三塁手','遊撃手','左翼手','中堅手','右翼手','内野手','外野手','DH','—'].map(p2=>`<option${p2===p.pos?' selected':''}>${p2}</option>`).join('')}
     </select></td>
     <td><select onchange="teams[${ti}].players[${pi}].bat=this.value">
-      ${['右','左','両','—'].map(b=>`<option${b===p.bat?' selected':''}>${b}</option>`).join('')}
+      <option value="右"${p.bat==='右'?' selected':''}>右打ち</option>
+      <option value="左"${p.bat==='左'?' selected':''}>左打ち</option>
+      <option value="両"${p.bat==='両'?' selected':''}>両打ち</option>
+      <option value="—"${(!p.bat||p.bat==='—')?' selected':''}>—</option>
     </select></td>
     <td><select onchange="teams[${ti}].players[${pi}].throw=this.value">
-      ${['右','左','—'].map(t=>`<option${t===p.throw?' selected':''}>${t}</option>`).join('')}
+      <option value="右"${p.throw==='右'?' selected':''}>右投げ</option>
+      <option value="左"${p.throw==='左'?' selected':''}>左投げ</option>
+      <option value="—"${(!p.throw||p.throw==='—')?' selected':''}>—</option>
     </select></td>
     <td><button onclick="removePlayer(${ti},${pi})" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;">×</button></td>
   </tr>`;
@@ -1031,10 +1064,11 @@ function playerRow(ti,pi,p){
 function addPlayer(ti){
   teams[ti].players.push({name:'',num:'',pos:'—',bat:'右',throw:'右'});
   renderTeams();
+  autoSave();
 }
-function removePlayer(ti,pi){teams[ti].players.splice(pi,1);renderTeams();}
-function addTeam(){teams.push({id:'t'+Date.now(),name:'新チーム',players:[]});renderTeams();}
-function removeTeam(ti){if(confirm('削除しますか？')){teams.splice(ti,1);renderTeams();}}
+function removePlayer(ti,pi){teams[ti].players.splice(pi,1);renderTeams();autoSave();}
+function addTeam(){teams.push({id:'t'+Date.now(),name:'新チーム',players:[]});renderTeams();autoSave();}
+function removeTeam(ti){if(confirm('削除しますか？')){teams.splice(ti,1);renderTeams();autoSave();}}
 
 // ===== GAME SETUP =====
 function renderSetup() {
@@ -1043,8 +1077,8 @@ function renderSetup() {
     const el = document.getElementById(`setup-team-${t}`);
     const sel = ti===0 ? game.teamA : game.teamB;
     const label = ti===0 ? '先攻（チームA）' : '後攻（チームB）';
+    const dhOn = ti===0 ? game.dhA : game.dhB;
 
-    // チームカード選択UI
     const teamCards = teams.map(tm=>`
       <div onclick="selectTeam('${t}','${tm.id}')"
         style="cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid ${sel&&sel.id===tm.id?'var(--blue)':'var(--border)'};
@@ -1065,9 +1099,40 @@ function renderSetup() {
           ${sel&&sel.id==='__custom'?'✓ ':''}✏️ 手動入力
         </button>
       </div>
+      <!-- DH制トグル -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px 12px;background:${dhOn?'var(--amber-light)':'var(--gray-light)'};border-radius:8px;border:1px solid ${dhOn?'#f0d090':'var(--border)'};">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--navy);">DH制</div>
+          <div style="font-size:11px;color:var(--muted);">指名打者制を使用する</div>
+        </div>
+        <button onclick="toggleDH('${t}')"
+          style="padding:5px 14px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;
+                 background:${dhOn?'var(--amber)':'var(--border)'};color:${dhOn?'#fff':'var(--muted)'};">
+          ${dhOn?'ON':'OFF'}
+        </button>
+      </div>
+      <div id="dh-player-panel-${t}" style="margin-top:6px;${dhOn?'':'display:none;'}">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">指名打者（DH）を選択</div>
+        <select id="dh-player-sel-${t}" onchange="setDHPlayer('${t}',this.value)" style="width:100%;font-size:12px;padding:5px 8px;">
+          <option value="">— 選択 —</option>
+          ${(sel?teams.find(tm=>tm.id===sel.id)?.players||[]:[] ).map(p=>`<option value="${p.name}" ${((ti===0?game.dhPlayerA:game.dhPlayerB)===p.name)?'selected':''}>${p.num?'#'+p.num+' ':''}${p.name}</option>`).join('')}
+        </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px;">DHを設定すると打順に投手枠が自動追加されます</div>
+      </div>
       <div id="order-panel-${t}" style="margin-top:10px;"></div>`;
     renderOrderPanel(t);
   });
+}
+
+function toggleDH(side){
+  if(side==='a') game.dhA=!game.dhA;
+  else game.dhB=!game.dhB;
+  renderSetup();
+}
+
+function setDHPlayer(side, name){
+  if(side==='a') game.dhPlayerA=name;
+  else game.dhPlayerB=name;
 }
 
 function selectTeam(side, teamId) {
@@ -1079,27 +1144,117 @@ function selectTeam(side, teamId) {
   renderOrderPanel(side);
 }
 
+// ポジショングループ定義
+const POS_GROUPS = {
+  '投手': ['投手'],
+  '捕手': ['捕手'],
+  '内野': ['一塁手','二塁手','三塁手','遊撃手','内野手'],
+  '外野': ['左翼手','中堅手','右翼手','外野手'],
+  'DH':  ['DH'],
+  'その他': ['—']
+};
+
 function renderOrderPanel(side) {
   const el = document.getElementById(`order-panel-${side}`);
   const team = side==='a' ? game.teamA : game.teamB;
   const order = side==='a' ? game.orderA : game.orderB;
+  const dhOn = side==='a' ? game.dhA : game.dhB;
   if(!el) return;
 
-  if(team && team.players.length) {
-    // チップ選択方式
-    el.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">打順をクリックして選択（順番に選ぶと打順が自動設定されます）</div>
-      <div style="margin-bottom:8px;">${team.players.map(p=>`
-        <span class="player-chip ${order.find(o=>o.id===p.name)?'selected':''}"
-          onclick="toggleOrderPlayer('${side}','${p.name}','${p.pos}','${p.bat}')">
-          ${p.num?'#'+p.num+' ':''}${p.name}<span style="font-size:9px;color:inherit;opacity:.7;margin-left:3px;">${p.pos}</span>
-        </span>`).join('')}
+  const teamData = team ? teams.find(t=>t.id===team.id) : null;
+  const players = teamData?.players || [];
+
+  if(players.length) {
+    // 先発投手選択（別枠）
+    const pitchers = players.filter(p=>p.pos==='投手');
+    const curPitcher = order.find(p=>p.pos==='投手');
+    const pitcherSection = `
+      <div style="background:var(--gray-light);border-radius:8px;padding:10px;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">⚾ 先発投手</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${pitchers.map(p=>{
+            const sel = curPitcher?.id===p.name;
+            const safeName = p.name.replace(/'/g,"\\'");
+            const safeBat  = (p.bat||'右').replace(/'/g,"\\'");
+            return `<span onclick="selectPitcher('${side}','${safeName}','投手','${safeBat}')"
+              style="cursor:pointer;padding:5px 12px;border-radius:20px;font-size:12px;border:1.5px solid ${sel?'var(--blue)':'var(--border)'};
+                     background:${sel?'var(--blue)':'var(--white)'};color:${sel?'#fff':'var(--text)'};">
+              ${p.num?'#'+p.num+' ':''}${p.name}
+            </span>`;
+          }).join('')}
+          ${!pitchers.length ? '<span style="font-size:11px;color:var(--muted);">投手が登録されていません</span>' : ''}
+          ${dhOn?'<span style="font-size:11px;color:var(--muted);margin-top:4px;display:block;">※DH制のため投手は打順に入りません</span>':''}
+        </div>
+      </div>`;
+
+    // ポジション別タブ
+    const tabGroups = ['捕手','内野','外野','DH','その他'];
+    const activeTab = `op-tab-${side}`;
+    // 現在のアクティブタブ（stateで管理）
+    if(!window._opTab) window._opTab = {};
+    if(!window._opTab[side]) window._opTab[side] = '捕手';
+    const curTab = window._opTab[side];
+
+    const tabBtns = tabGroups.map(g=>`
+      <button onclick="switchOpTab('${side}','${g}')"
+        style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;cursor:pointer;
+               background:${'${g}'===curTab?'var(--navy)':'var(--white)'};color:${'${g}'===curTab?'#fff':'var(--muted)'};"
+        id="op-tab-${side}-${g.replace('/','')}">${g}</button>`).join('');
+
+    // 現在のタブのプレイヤー
+    const groupPosNames = POS_GROUPS[curTab] || [];
+    const groupPlayers = players.filter(p=>groupPosNames.includes(p.pos));
+
+    const ALL_POS = ['投手','捕手','一塁手','二塁手','三塁手','遊撃手','左翼手','中堅手','右翼手','内野手','外野手','DH'];
+
+    const playerChips = groupPlayers.length
+      ? groupPlayers.map(p=>{
+          const inOrder = order.find(o=>o.id===p.name&&o.pos!=='投手');
+          const orderIdx = inOrder ? order.findIndex(o=>o.id===p.name&&o.pos!=='投手') : -1;
+          const currentPos = inOrder ? inOrder.pos : p.pos;
+          const posSel = `<select onclick="event.stopPropagation()" onchange="${inOrder?`changeOrderPos('${side}',${orderIdx},this.value)`:`changePendingPos('${side}','${p.name}',this.value)`}"
+              style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:5px;background:#fff;color:var(--navy);max-width:90px;">
+              ${ALL_POS.map(pos=>`<option value="${pos}"${currentPos===pos?' selected':''}>${pos}</option>`).join('')}
+            </select>`;
+
+          return `<div onclick="toggleOrderPlayer('${side}','${p.name}','${p.pos}','${p.bat}')"
+            style="cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;
+                   border:1.5px solid ${inOrder?'var(--blue)':'var(--border)'};
+                   background:${inOrder?'var(--blue-light)':'var(--white)'};margin-bottom:5px;">
+            <div style="width:22px;height:22px;border-radius:50%;background:${inOrder?'var(--blue)':'var(--border)'};
+                        color:${inOrder?'#fff':'var(--muted)'};font-size:11px;font-weight:700;flex-shrink:0;
+                        display:flex;align-items:center;justify-content:center;">
+              ${inOrder?orderIdx+1:''}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:${inOrder?'600':'400'};">${p.num?'#'+p.num+' ':''}${p.name}</div>
+              <div style="margin-top:2px;">${posSel}</div>
+            </div>
+            ${inOrder?'<span style="color:var(--blue);font-size:16px;flex-shrink:0;">✓</span>':''}
+          </div>`;
+        }).join('')
+      : `<div style="font-size:12px;color:var(--muted);padding:8px;">このポジションの選手がいません</div>`;
+
+    el.innerHTML = `
+      ${pitcherSection}
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">打順 (${order.filter(p=>p.pos!=='投手'||!dhOn).length}/9)</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+        ${tabGroups.map(g=>`
+          <button onclick="switchOpTab('${side}','${g}')"
+            style="padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;cursor:pointer;
+                   background:${g===curTab?'var(--navy)':'var(--white)'};color:${g===curTab?'#fff':'var(--muted)'};">
+            ${g}
+            <span style="font-size:10px;opacity:.7;">(${players.filter(p=>(POS_GROUPS[g]||[]).includes(p.pos)).length})</span>
+          </button>`).join('')}
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">打順（ドラッグ可）</div>
+      <div id="op-players-${side}">${playerChips}</div>
+      <div style="font-size:11px;color:var(--muted);margin:8px 0 4px;">確定した打順</div>
       <div id="order-list-${side}"></div>`;
     renderOrderList(side);
   } else {
-    // 手動入力
-    el.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">チーム名と打順を入力</div>
+    // 手動入力（選手未登録の場合）
+    el.innerHTML = `
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">選手が登録されていません。手動で入力してください。</div>
       <div class="form-group"><label>チーム名</label>
         <input type="text" placeholder="${side==='a'?'チームA':'チームB'}" id="manual-name-${side}"
           value="${(side==='a'?(game.teamA?game.teamA.name:''):(game.teamB?game.teamB.name:''))||''}">
@@ -1116,9 +1271,46 @@ function renderOrderPanel(side) {
   }
 }
 
-function toggleOrderPlayer(side, name, pos, bat) {
+function changeOrderPos(side, idx, newPos){
   const order = side==='a' ? game.orderA : game.orderB;
-  const idx = order.findIndex(o=>o.id===name);
+  if(order[idx]) order[idx].pos = newPos;
+  renderOrderList(side);
+}
+function changePendingPos(side, name, newPos){
+  // チームデータのポジションも更新
+  const team = side==='a' ? game.teamA : game.teamB;
+  const teamData = teams.find(t=>t.id===team?.id);
+  const pl = teamData?.players.find(p=>p.name===name);
+  if(pl) pl.pos = newPos;
+  renderOrderPanel(side);
+}
+
+function switchOpTab(side, group){
+  if(!window._opTab) window._opTab = {};
+  window._opTab[side] = group;
+  renderOrderPanel(side);
+}
+
+function selectPitcher(side, name, pos, bat){
+  const order = side==='a' ? game.orderA : game.orderB;
+  // 既存の投手を除く
+  const idx = order.findIndex(p=>p.pos==='投手');
+  if(idx>-1){
+    if(order[idx].id===name){ order.splice(idx,1); renderOrderPanel(side); return; }
+    order.splice(idx,1);
+  }
+  // DH制でない場合は打順に追加
+  const dhOn = side==='a' ? game.dhA : game.dhB;
+  if(!dhOn) order.push({id:name,name,pos,bat});
+  // DH制でも先発投手はgameに記録しておく
+  if(side==='a') game.pitcherA=name; else game.pitcherB=name;
+  renderOrderPanel(side);
+}
+
+function toggleOrderPlayer(side, name, pos, bat) {
+  if(pos==='投手'){ selectPitcher(side,name,pos,bat); return; }
+  const order = side==='a' ? game.orderA : game.orderB;
+  const idx = order.findIndex(o=>o.id===name&&o.pos!=='投手');
   if(idx>-1){ order.splice(idx,1); }
   else if(order.length<9){ order.push({id:name,name,pos,bat}); }
   renderOrderPanel(side);
@@ -1129,10 +1321,12 @@ function renderOrderList(side) {
   const el = document.getElementById(`order-list-${side}`);
   if(!el) return;
   el.innerHTML = order.map((p,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--blue-light);border-radius:6px;margin-bottom:3px;font-size:12px;">
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;
+                background:${p.pos==='投手'?'var(--gray-light)':'var(--blue-light)'};
+                border-radius:6px;margin-bottom:3px;font-size:12px;">
       <span style="font-weight:700;color:var(--navy);min-width:20px;">${i+1}</span>
       <span style="flex:1;">${p.name}</span>
-      <span style="font-size:10px;color:var(--muted);">${p.pos}</span>
+      <span style="font-size:10px;color:var(--muted);padding:1px 6px;background:rgba(255,255,255,.6);border-radius:4px;">${p.pos}</span>
       <button onclick="removeOrderPlayer('${side}',${i})" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;">×</button>
     </div>`).join('');
 }
@@ -1168,9 +1362,33 @@ function startGame() {
     if(side==='b'&&!game.teamB) game.teamB={name};
   });
 
+  // DH制の処理
+  ['a','b'].forEach(side=>{
+    const dhOn = side==='a' ? game.dhA : game.dhB;
+    const dhPlayer = side==='a' ? game.dhPlayerA : game.dhPlayerB;
+    const order = side==='a' ? game.orderA : game.orderB;
+    if(dhOn){
+      // 投手を打順から除外し、DHを追加
+      // すでにDH選手が打順にいる場合はそのまま
+      const hasDH = order.some(p=>p.pos==='DH');
+      if(!hasDH && dhPlayer){
+        // DHを打順末尾に追加（または投手の位置に）
+        const team = side==='a'?game.teamA:game.teamB;
+        const teamData = teams.find(t=>t.id===team?.id);
+        const dhPl = teamData?.players.find(p=>p.name===dhPlayer);
+        if(dhPl && !order.find(p=>p.name===dhPlayer)){
+          order.push({id:dhPl.name, name:dhPl.name, num:dhPl.num, pos:'DH', bat:dhPl.bat});
+        }
+      }
+      // DH制フラグをgameに保存
+      if(side==='a') game.dhA=true; else game.dhB=true;
+    }
+  });
+
   gotoTab('game');
   showScreen('game');
   initGame();
+  autoSave();
 }
 
 // ===== GAME INIT =====
@@ -1181,7 +1399,7 @@ function initGame(){
   updateSituation();
   updateConfirm();
   updateRunnerDisplay();
-  setTimeout(()=>initFieldCanvas(), 100);
+  setTimeout(()=>{ initFieldCanvas(); drawMiniDiamond([], null); }, 100);
 }
 
 function buildScoreboard(){
@@ -1206,20 +1424,42 @@ function buildZoneGrid(){
 }
 
 function buildOrderSelect(){
-  const sel=document.getElementById('sel-order');
-  const players=cur.tb==='表'?game.orderA:game.orderB;
-  sel.innerHTML=players.map(p=>`<option value="${p.id}">${players.indexOf(p)+1}番 ${p.name}</option>`).join('');
+  const sel = document.getElementById('sel-order');
+  if(!sel) return;
+  const players = cur.tb==='表' ? game.orderA : game.orderB;
+  sel.innerHTML = players.map((p,i)=>`<option value="${p.id}">${i+1}番 ${p.name}</option>`).join('');
+  // cur.order に対応する選択肢をセット
+  const target = players[cur.order - 1];
+  if(target) sel.value = target.id;
 }
 
-// ===== SITUATION =====
+// ユーザーが手動で打順セレクトを変えた時
+function onOrderChange(){
+  const sel = document.getElementById('sel-order');
+  const players = cur.tb==='表' ? game.orderA : game.orderB;
+  const found = players.find(p => p.id === sel.value);
+  if(found) cur.order = players.indexOf(found) + 1;
+  updateHeader();
+}
+
+// イニング・表裏が変わった時（UIから）
 function updateSituation(){
-  cur.inning=parseInt(document.getElementById('sel-inning').value)||1;
-  cur.tb=document.getElementById('sel-tb').value;
+  cur.inning = parseInt(document.getElementById('sel-inning').value) || 1;
+  cur.tb = document.getElementById('sel-tb').value;
+  // 表裏が変わったら打順を1番に戻す
+  cur.order = 1;
   buildOrderSelect();
-  const selOrd=document.getElementById('sel-order');
-  const players=cur.tb==='表'?game.orderA:game.orderB;
-  const found=players.find(p=>p.id===selOrd.value);
-  cur.order=found?players.indexOf(found)+1:1;
+  updateHeader();
+}
+
+function updateHeader(){
+  const offPl=cur.tb==='表'?game.orderA:game.orderB;
+  const defPl=cur.tb==='表'?game.orderB:game.orderA;
+  const pitcher=defPl.find(p=>p.pos==='投手')||defPl[0];
+  const batter=offPl[cur.order-1]||offPl[0];
+  const offTeamName=cur.tb==='表'?(game.teamA?.name||'A'):(game.teamB?.name||'B');
+  const defTeamName=cur.tb==='表'?(game.teamB?.name||'B'):(game.teamA?.name||'A');
+  const dhOn=cur.tb==='表'?game.dhA:game.dhB;
 
   // Scoreboard highlight
   document.querySelectorAll('.score-table td.cur').forEach(td=>td.classList.remove('cur'));
@@ -1228,16 +1468,70 @@ function updateSituation(){
   if(cur.tb==='表'&&sa) sa.classList.add('cur');
   if(cur.tb==='裏'&&sb) sb.classList.add('cur');
 
-  // Header
-  const offPl=cur.tb==='表'?game.orderA:game.orderB;
-  const defPl=cur.tb==='表'?game.orderB:game.orderA;
-  const pitcher=defPl.find(p=>p.pos==='投手')||defPl[0];
-  const batter=offPl[cur.order-1]||offPl[0];
-  document.getElementById('hdr-p-label').textContent=`投手 (${cur.tb==='表'?(game.teamB?.name||'B'):(game.teamA?.name||'A')})`;
-  document.getElementById('hdr-b-label').textContent=`打者 (${cur.tb==='表'?(game.teamA?.name||'A'):(game.teamB?.name||'B')})`;
+  document.getElementById('hdr-p-label').textContent=`投手 (${defTeamName}) 🔄`;
+  document.getElementById('hdr-b-label').textContent=`打者 (${offTeamName}${dhOn?' ⚡DH':''})`;
   document.getElementById('hdr-pitcher').textContent=pitcher?.name||'—';
-  document.getElementById('hdr-batter').textContent=batter?`${batter.name}`:' —';
+  document.getElementById('hdr-batter').textContent=batter?.name||'—';
+  const pitcherSub=document.getElementById('hdr-pitcher-sub');
+  if(pitcherSub) pitcherSub.textContent=pitcher?.num?'#'+pitcher.num:'';
+
+  // ランナー表示
+  const runnersEl=document.getElementById('hdr-runners');
+  if(runnersEl){
+    const runnerLabels=['1塁','2塁','3塁'];
+    runnersEl.innerHTML=cur.runners.map((on,i)=>{
+      if(!on) return '';
+      const rId=cur.runnerIds?.[i];
+      const rPl=offPl.find(p=>p.id===rId);
+      const rName=rPl?rPl.name:`${i+1}塁走者`;
+      return `<div style="background:var(--amber);color:var(--navy);font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;">${runnerLabels[i]} ${rName}</div>`;
+    }).join('');
+  }
   if(batter?.bat) setBatterSide(batter.bat==='左'?'left':'right');
+}
+
+function openPitcherChange(){
+  const panel = document.getElementById('pitcher-change-panel');
+  const list  = document.getElementById('pitcher-change-list');
+  const defSide = cur.tb==='表'?'b':'a';
+  const defTeam = defSide==='a'?game.teamA:game.teamB;
+  const allPl = teams.find(t=>t.id===defTeam?.id)?.players||[];
+  const pitchers = allPl.filter(p=>p.pos==='投手');
+
+  if(!pitchers.length){
+    list.innerHTML='<span style="color:rgba(255,255,255,.5);font-size:12px;">投手が登録されていません</span>';
+  } else {
+    const defOrder = defSide==='a'?game.orderA:game.orderB;
+    const curPitcher = defOrder.find(p=>p.pos==='投手');
+    list.innerHTML = pitchers.map(p=>{
+      const isCur = curPitcher?.name===p.name;
+      return `<button onclick="quickPitcherChange('${defSide}','${p.name.replace(/'/g,"\\'")}','${(p.bat||'右').replace(/'/g,"\\'")}','${(p.num||'').replace(/'/g,"\\'")}')"
+        style="padding:6px 14px;border-radius:20px;border:1.5px solid ${isCur?'var(--amber)':'rgba(255,255,255,.3)'};
+               background:${isCur?'var(--amber)':'rgba(255,255,255,.1)'};color:${isCur?'var(--navy)':'#fff'};
+               font-size:12px;font-weight:600;cursor:pointer;">
+        ${isCur?'▶ ':''}${p.num?'#'+p.num+' ':''}${p.name}
+      </button>`;
+    }).join('');
+  }
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+}
+
+function quickPitcherChange(defSide, name, bat, num){
+  const defOrder = defSide==='a'?game.orderA:game.orderB;
+  const idx = defOrder.findIndex(p=>p.pos==='投手');
+  const newPl = {id:name,name,pos:'投手',bat,num};
+  if(idx>-1) defOrder[idx]=newPl; else defOrder.push(newPl);
+  document.getElementById('pitcher-change-panel').style.display='none';
+  updateSituation();
+  // ログに記録
+  pitchLog.push({
+    num: pitchLog.length+1,
+    inning: cur.inning, tb: cur.tb, order: cur.order,
+    pitcher: name, batter:'—',
+    pitchType:'', speed:null, zone:'', result:'投手交代',
+    resultType:'sp', specials:[], hitQuality:'', fieldLabel:'', fieldZone:'', hitResult:'',
+    outs:null, runs:null, runners:'', bso:'', catchOrder:'', memo:`投手交代: ${name}`
+  });
 }
 
 // ===== ZONE =====
@@ -1262,30 +1556,25 @@ function setBatterSide(s){
   // 左打ちはバッターが右側に立つ
   //   → キャッチャーから見て 左=外角、右=内角
   if(s==='right'){
+    // 右打ち：捕手目線で左=内角、右=外角
     if(TL){TL.textContent='内高'; TL.onclick=()=>selectBZ('ih','内高');}
     if(TR){TR.textContent='外高'; TR.onclick=()=>selectBZ('oh','外高');}
     if(BL){BL.textContent='内低'; BL.onclick=()=>selectBZ('il','内低');}
     if(BR){BR.textContent='外低'; BR.onclick=()=>selectBZ('ol','外低');}
+    // 捕手の構えも右打ち基準
+    const stanceMap=['内高め','真ん中高','外高め','内','真ん中','外'];
+    const stanceBtns=document.querySelectorAll('#stance-grid .stance-btn');
+    stanceBtns.forEach((btn,i)=>{ if(!stanceMap[i]) return; btn.textContent=stanceMap[i]; btn.onclick=function(){selectStance(this,stanceMap[i]);}; });
   } else {
+    // 左打ち：捕手目線で左=外角、右=内角
     if(TL){TL.textContent='外高'; TL.onclick=()=>selectBZ('oh','外高');}
     if(TR){TR.textContent='内高'; TR.onclick=()=>selectBZ('ih','内高');}
     if(BL){BL.textContent='外低'; BL.onclick=()=>selectBZ('ol','外低');}
     if(BR){BR.textContent='内低'; BR.onclick=()=>selectBZ('il','内低');}
+    const stanceMap=['外高め','真ん中高','内高め','外','真ん中','内'];
+    const stanceBtns=document.querySelectorAll('#stance-grid .stance-btn');
+    stanceBtns.forEach((btn,i)=>{ if(!stanceMap[i]) return; btn.textContent=stanceMap[i]; btn.onclick=function(){selectStance(this,stanceMap[i]);}; });
   }
-
-  // 捕手の構えボタンも同じ向きで入れ替え
-  // 右打ち: 左から 内高め / 真ん中高 / 外高め / 内 / 真ん中 / 外
-  // 左打ち: 左から 外高め / 真ん中高 / 内高め / 外 / 真ん中 / 内
-  const stanceMap = s==='right'
-    ? ['内高め','真ん中高','外高め','内','真ん中','外']
-    : ['外高め','真ん中高','内高め','外','真ん中','内'];
-  const stanceBtns = document.querySelectorAll('#stance-grid .stance-btn');
-  stanceBtns.forEach((btn, i)=>{
-    if(!stanceMap[i]) return;
-    const v = stanceMap[i];
-    btn.textContent = v;
-    btn.onclick = function(){ selectStance(this, v); };
-  });
 }
 function selectZoneCell(cell,zn,label){
   document.querySelectorAll('.sz-cell').forEach(c=>{c.classList.remove('sel');c.style.background='';c.style.color='';});
@@ -1369,8 +1658,9 @@ function selectResult(btn,val,type){
     updateCountDots('b',newB);
     cur.balls=newB;
   } else if(val==='見逃しスト'||val==='空振り'||val==='ファール'||val==='ファールチップ'){
-    // ファールは2ストライク以上増えない
-    if(val!=='ファール'&&val!=='ファールチップ'||cur.strikes<2){
+    const isFoul = val==='ファール'||val==='ファールチップ';
+    // ファール・ファールチップは2ストライク時には増えない
+    if(!isFoul || cur.strikes < 2){
       const newS=Math.min(cur.strikes+1,2);
       updateCountDots('s',newS);
       cur.strikes=newS;
@@ -1399,6 +1689,147 @@ function selectHQ(btn,val){
   document.querySelectorAll('.hq-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');cur.hitQuality=val;updateConfirm();
 }
+function drawMiniDiamond(arrows, selectedBase){
+  const canvas = document.getElementById('mini-diamond');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const cx=W/2, cy=H-14;
+  const s=W*0.27;
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#1a3a1a'; ctx.fillRect(0,0,W,H);
+
+  // 外野
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,s*2.7,Math.PI*1.25,Math.PI*1.75,false);
+  ctx.closePath(); ctx.fillStyle='#2d5a22'; ctx.fill();
+
+  // 内野土
+  ctx.beginPath(); ctx.arc(cx,cy,s*1.05,0,Math.PI*2);
+  ctx.fillStyle='#6a4a10'; ctx.fill();
+
+  // ダイヤモンド草
+  ctx.beginPath();
+  ctx.moveTo(cx,cy); ctx.lineTo(cx+s,cy-s);
+  ctx.lineTo(cx,cy-s*2); ctx.lineTo(cx-s,cy-s);
+  ctx.closePath(); ctx.fillStyle='#2d5a22'; ctx.fill();
+
+  // ファールライン
+  ctx.strokeStyle='rgba(255,255,255,.4)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx-s*2.7,cy-s*2.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+s*2.7,cy-s*2.7); ctx.stroke();
+
+  // フェンス
+  ctx.beginPath(); ctx.arc(cx,cy,s*2.7,Math.PI*1.25,Math.PI*1.75,false);
+  ctx.strokeStyle='rgba(255,255,255,.4)'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // ベースライン
+  ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=1;
+  [[cx,cy,cx+s,cy-s],[cx+s,cy-s,cx,cy-s*2],[cx,cy-s*2,cx-s,cy-s],[cx-s,cy-s,cx,cy]].forEach(([x1,y1,x2,y2])=>{
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  });
+
+  // マウンド
+  ctx.beginPath(); ctx.arc(cx,cy-s*1.15,4,0,Math.PI*2);
+  ctx.fillStyle='#7a5a14'; ctx.fill();
+
+  // ベース
+  [[cx+s,cy-s],[cx,cy-s*2],[cx-s,cy-s]].forEach(([bx,by])=>{
+    ctx.save(); ctx.translate(bx,by); ctx.rotate(Math.PI/4);
+    ctx.fillStyle='#fff'; ctx.fillRect(-4,-4,8,8); ctx.restore();
+  });
+  // ホームベース
+  ctx.save(); ctx.translate(cx,cy-7);
+  ctx.fillStyle='#fff'; ctx.beginPath();
+  ctx.moveTo(-5,-3); ctx.lineTo(5,-3); ctx.lineTo(5,2); ctx.lineTo(0,6); ctx.lineTo(-5,2);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+
+  // ベース座標
+  const bp = {
+    '打席':{x:cx,y:cy+10}, 1:{x:cx+s*0.9,y:cy-s*0.9},
+    2:{x:cx,y:cy-s*1.9},   3:{x:cx-s*0.9,y:cy-s*0.9}, '本塁':{x:cx,y:cy-9},
+  };
+  const arrowList = arrows || [];
+  arrowList.forEach(({from,to,name})=>{
+    const fp=bp[from], tp=bp[to];
+    if(!fp||!tp) return;
+    ctx.save();
+    ctx.strokeStyle='#FFD700'; ctx.lineWidth=2; ctx.setLineDash([4,2]);
+    ctx.beginPath(); ctx.moveTo(fp.x,fp.y); ctx.lineTo(tp.x,tp.y); ctx.stroke();
+    const angle=Math.atan2(tp.y-fp.y,tp.x-fp.x);
+    ctx.setLineDash([]); ctx.fillStyle='#FFD700';
+    ctx.save(); ctx.translate(tp.x,tp.y); ctx.rotate(angle);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-7,-3); ctx.lineTo(-7,3);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    if(name){
+      const mx=(fp.x+tp.x)/2, my=(fp.y+tp.y)/2;
+      ctx.fillStyle='rgba(0,0,0,.7)';
+      ctx.fillRect(mx-18,my-7,36,14);
+      ctx.fillStyle='#FFD700'; ctx.font='bold 8px sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(name.slice(0,4),mx,my); ctx.textBaseline='alphabetic';
+    }
+    ctx.restore();
+  });
+
+  // ランナー丸
+  const offPl = (typeof cur!=='undefined') ? (cur.tb==='表'?game.orderA:game.orderB) : [];
+  const runners = (typeof cur!=='undefined') ? cur.runners : [false,false,false];
+  const runnerIds = (typeof cur!=='undefined') ? (cur.runnerIds||[]) : [];
+
+  // 選択中の場合は移動先をハイライト
+  if(selectedBase){
+    [1,2,3,'本塁'].forEach(b=>{
+      if(b===selectedBase) return;
+      const pos=bp[b];
+      ctx.beginPath(); ctx.arc(pos.x,pos.y,13,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,215,0,.7)'; ctx.lineWidth=2;
+      ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+
+  [1,2,3].forEach(b=>{
+    if(!runners[b-1]) return;
+    const pos=bp[b]; if(!pos) return;
+    const rId=runnerIds[b-1];
+    const pl=rId ? offPl.find(p=>p.id===rId) : null;
+    const label=pl?(pl.num||pl.name.slice(0,2)):String(b);
+    ctx.beginPath(); ctx.arc(pos.x,pos.y,11,0,Math.PI*2);
+    ctx.fillStyle = (b===selectedBase) ? '#FF6B00' : '#F5A623';
+    ctx.fill();
+    if(b===selectedBase){
+      // 選択中は白い外枠を太く
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.stroke();
+    } else {
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+    }
+    ctx.fillStyle='#fff';
+    ctx.font=`bold ${String(label).length>2?7:9}px sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(label),pos.x,pos.y);
+    ctx.textBaseline='alphabetic';
+  });
+}
+
+function showRunnerArrows(moves){
+  window._pendingArrows = moves;
+  drawMiniDiamond(moves, null);
+
+  const box=document.getElementById('runner-result-box');
+  const txt=document.getElementById('runner-result-text');
+  if(box&&txt){
+    const toLabel=v=>v==='本塁'?'🏠本塁（得点）':v==='打席'?'打席':`${v}塁`;
+    txt.innerHTML=moves.map(m=>`${toLabel(m.from)} → ${toLabel(m.to)}　<b>${m.name}</b>`).join('<br>');
+    box.style.display='block';
+  }
+  setTimeout(()=>{
+    window._pendingArrows=[];
+    drawMiniDiamond([], null);
+    if(box) box.style.display='none';
+  }, 5000);
+}
+
 // ===== CANVAS FIELD =====
 let fieldDots = [];
 let pendingDot = null;
@@ -1406,7 +1837,7 @@ let catchOrder = []; // [{posCode, order}]
 
 const RESULT_DOT_COLOR = {
   '単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#1E7EC8','内野安打':'#1E7EC8',
-  'ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#E03F3F',
+  '凡打':'#E03F3F','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#E03F3F',
   '犠打':'#7C5CBF','犠飛':'#7C5CBF',
   'エラー':'#F5A623','野選':'#F5A623',
   'ファール':'#F5A623','インプレー':'#aaa',
@@ -1638,9 +2069,92 @@ function drawField(canvas){
   // ── 13. 守備位置の丸印 ──
   drawFielderCircles(ctx, cx, cy, s, ofR);
 
-  // ── 14. ドット ──
+  // ── 14. ドット（打球落下点） ──
   fieldDots.forEach(d => drawDot(ctx, d, false));
   if(pendingDot) drawDot(ctx, pendingDot, true);
+}
+
+function basePos(cx, cy, s){
+  return {
+    '打席': {x:cx, y:cy+18},
+    1: {x:cx+s*0.95, y:cy-s*0.95},
+    2: {x:cx,        y:cy-s*1.95},
+    3: {x:cx-s*0.95, y:cy-s*0.95},
+    '本塁': {x:cx,   y:cy-14},
+  };
+}
+
+function drawRunnerCircles(ctx, cx, cy, s){
+  const offPl = cur.tb==='表' ? game.orderA : game.orderB;
+  const bp = basePos(cx, cy, s);
+  [1,2,3].forEach(b=>{
+    if(!cur.runners[b-1]) return;
+    const pos = bp[b];
+    if(!pos) return;
+    const rId = cur.runnerIds?.[b-1];
+    const pl = rId ? offPl.find(p=>p.id===rId) : null;
+    const label = pl ? (pl.num||pl.name.slice(0,2)) : String(b);
+
+    // オレンジ丸
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 13, 0, Math.PI*2);
+    ctx.fillStyle = '#F5A623';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 名前/背番号
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${String(label).length>2?8:10}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(label), pos.x, pos.y);
+    ctx.textBaseline = 'alphabetic';
+  });
+}
+
+function drawArrows(ctx, cx, cy, s){
+  const arrows = window._pendingArrows || [];
+  const bp = basePos(cx, cy, s);
+  arrows.forEach(({from, to, name})=>{
+    const fp = bp[from], tp = bp[to];
+    if(!fp||!tp) return;
+    ctx.save();
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6,3]);
+    ctx.beginPath();
+    ctx.moveTo(fp.x, fp.y);
+    ctx.lineTo(tp.x, tp.y);
+    ctx.stroke();
+    // 矢印の先端
+    const angle = Math.atan2(tp.y-fp.y, tp.x-fp.x);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#FFD700';
+    ctx.save();
+    ctx.translate(tp.x, tp.y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.moveTo(0,0); ctx.lineTo(-12,-5); ctx.lineTo(-12,5);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // 名前ラベル
+    if(name){
+      const mx=(fp.x+tp.x)/2, my=(fp.y+tp.y)/2;
+      ctx.fillStyle='rgba(0,0,0,.7)';
+      ctx.beginPath();
+      ctx.rect(mx-22, my-8, 44, 16);
+      ctx.fill();
+      ctx.fillStyle='#FFD700';
+      ctx.font='bold 9px sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(name.slice(0,4), mx, my);
+      ctx.textBaseline='alphabetic';
+    }
+    ctx.restore();
+  });
 }
 
 function drawFielderCircles(ctx, cx, cy, s, ofR){
@@ -1761,7 +2275,8 @@ function onFieldClick(e){
     }
   }
 
-  // 落下点タップ
+  // 落下点タップ：毎回リセットしてから新しいdotをセット
+  pendingDot = null;
   const info = getFieldLabel(canvas, x, y);
   if(!info) return;
   cur.fieldZone = info.code;
@@ -1810,6 +2325,27 @@ function selectHitResult(btn,val){
   document.querySelectorAll('#hit-result-grid .hr-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');cur.hitResult=val;
   if(['エラー','野選'].includes(val)) errs[cur.tb==='表'?'b':'a']++;
+
+  // アウト数を自動セット
+  const autoOuts = {
+    '凡打':1,'ゲッツー':2,'犠打':1,'犠飛':1
+  };
+  if(val in autoOuts){
+    const n = autoOuts[val];
+    document.querySelectorAll('.or-btn.sel-o').forEach(b=>b.classList.remove('sel-o'));
+    const orBtns = document.querySelectorAll('.or-btn');
+    orBtns.forEach(b=>{
+      const t=b.textContent.trim();
+      if((n===1&&t==='1アウト')||(n===2&&t==='2アウト')) b.classList.add('sel-o');
+    });
+    cur.outs = n;
+  } else if(['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(val)){
+    document.querySelectorAll('.or-btn.sel-o').forEach(b=>b.classList.remove('sel-o'));
+    const orBtns = document.querySelectorAll('.or-btn');
+    orBtns.forEach(b=>{ if(b.textContent.trim()==='アウトなし') b.classList.add('sel-o'); });
+    cur.outs = 0;
+  }
+
   refreshFieldDotColor();
   updateConfirm();
 }
@@ -1821,7 +2357,129 @@ function selectOut(btn,n){
 }
 function selectRun(btn,n){
   document.querySelectorAll('.or-btn.sel-r').forEach(b=>b.classList.remove('sel-r'));
-  btn.classList.add('sel-r');cur.runs=n;updateConfirm();
+  btn.classList.add('sel-r');cur.runs=n;
+  // 得点/打点パネルの表示
+  const panel=document.getElementById('run-type-panel');
+  if(panel) panel.style.display = n>0 ? 'block' : 'none';
+  updateConfirm();
+}
+
+function setRunType(type){
+  cur.runType = type;
+  document.getElementById('rtype-rbi').classList.toggle('sel-o', type==='rbi');
+  document.getElementById('rtype-run').classList.toggle('sel-o', type==='run');
+}
+
+let _selectedRunner = null; // 選択中のランナー塁番号
+
+function onMiniDiamondClick(e){
+  const canvas = document.getElementById('mini-diamond');
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (canvas.width/rect.width);
+  const y = (e.clientY - rect.top) * (canvas.height/rect.height);
+  const W=canvas.width, H=canvas.height;
+  const cx=W/2, cy=H-14, s=W*0.27;
+
+  // 各ベースの座標
+  const bp = {
+    1:{x:cx+s*0.9, y:cy-s*0.9},
+    2:{x:cx,       y:cy-s*1.9},
+    3:{x:cx-s*0.9, y:cy-s*0.9},
+    '本塁':{x:cx,  y:cy-9},
+  };
+
+  const hitR = 16; // タップ判定半径
+
+  if(_selectedRunner === null){
+    // ランナーのいる塁をタップして選択
+    for(let b=1; b<=3; b++){
+      if(!cur.runners[b-1]) continue;
+      const pos = bp[b];
+      if(Math.sqrt((x-pos.x)**2+(y-pos.y)**2) <= hitR){
+        _selectedRunner = b;
+        drawMiniDiamond([], _selectedRunner);
+        return;
+      }
+    }
+  } else {
+    // 移動先の塁をタップ
+    const from = _selectedRunner;
+    let to = null;
+
+    // どの塁をタップしたか
+    for(let b=1; b<=3; b++){
+      if(b===from) continue; // 同じ塁は無視
+      const pos = bp[b];
+      if(Math.sqrt((x-pos.x)**2+(y-pos.y)**2) <= hitR){
+        to = b; break;
+      }
+    }
+    // 本塁タップ
+    const homePos = bp['本塁'];
+    if(Math.sqrt((x-homePos.x)**2+(y-homePos.y)**2) <= hitR){
+      to = '本塁';
+    }
+
+    if(to === null){
+      // 塁以外をタップ → 選択解除
+      _selectedRunner = null;
+      drawMiniDiamond([], null);
+      return;
+    }
+
+    // 進塁処理
+    moveRunner(from, to);
+    _selectedRunner = null;
+  }
+}
+
+function moveRunner(from, to){
+  const runners  = [...cur.runners];
+  const runnerIds= [...(cur.runnerIds||[])];
+  const movingId = runnerIds[from-1];
+  const offPl    = cur.tb==='表'?game.orderA:game.orderB;
+  const pl       = movingId ? offPl.find(p=>p.id===movingId) : null;
+  const name     = pl?.name || `${from}塁走者`;
+
+  // 元の塁を空に
+  runners[from-1]   = false;
+  runnerIds[from-1] = null;
+
+  if(to === '本塁'){
+    // 得点
+    cur.runs = (cur.runs||0) + 1;
+    // 得点パネルを自動更新
+    document.querySelectorAll('.or-btn.sel-r').forEach(b=>b.classList.remove('sel-r'));
+    document.querySelectorAll('.or-btn').forEach(b=>{
+      if(b.textContent.trim()===`${cur.runs}点`) b.classList.add('sel-r');
+    });
+    const panel=document.getElementById('run-type-panel');
+    if(panel) panel.style.display='block';
+    // 矢印表示
+    showRunnerArrows([{from, to:'本塁', name}]);
+  } else {
+    // 進塁先にすでにランナーがいる場合はさらに前に押し出す（簡易）
+    if(runners[to-1]){
+      const pushedId = runnerIds[to-1];
+      if(to < 3){ runners[to]=true; runnerIds[to]=pushedId; }
+      // 3塁→本塁押し出し
+      else { cur.runs=(cur.runs||0)+1; }
+    }
+    runners[to-1]   = true;
+    runnerIds[to-1] = movingId;
+    showRunnerArrows([{from, to, name}]);
+  }
+
+  cur.runners   = runners;
+  cur.runnerIds = runnerIds;
+
+  // ダイヤモンド表示更新
+  [1,2,3].forEach(b=>{
+    document.getElementById('b'+b)?.classList.toggle('on', cur.runners[b-1]);
+  });
+  drawMiniDiamond([], null);
+  updateRunnerDisplay();
+  updateConfirm();
 }
 
 // ===== RUNNERS =====
@@ -1869,6 +2527,16 @@ function updateConfirm(){
 // ===== CONFIRM PITCH =====
 function confirmPitch(){
   if(!cur.result){alert('投球結果を選択してください');return;}
+
+  // アウトの自動補完
+  if(['見逃し三振','空振り三振'].includes(cur.result) && cur.outs===null) cur.outs=1;
+  if(['ゴロアウト','フライアウト','ライナーアウト','凡打','犠打','犠飛'].includes(cur.hitResult) && cur.outs===null) cur.outs=1;
+  if(cur.hitResult==='ゲッツー' && cur.outs===null) cur.outs=2;
+  // 三振も見逃しスト/空振りの場合（2S未満）は result そのまま
+  // ただし isStrikeout で拾うために result を正規化
+  if(cur.result==='見逃しスト' && cur.outs===null) cur.outs=0; // アウトにならない
+  if(cur.result==='空振り'     && cur.outs===null) cur.outs=0;
+
   const off=cur.tb==='表'?'a':'b';
   const offPl=cur.tb==='表'?game.orderA:game.orderB;
   const defPl=cur.tb==='表'?game.orderB:game.orderA;
@@ -1888,7 +2556,7 @@ function confirmPitch(){
     hitQuality:cur.hitQuality, fieldLabel:cur.fieldLabel, fieldZone:cur.fieldZone,
     fieldX:cur.fieldX||null, fieldY:cur.fieldY||null,
     hitResult:cur.hitResult,
-    outs:cur.outs, runs:cur.runs,
+    outs:cur.outs, runs:cur.runs, runType:cur.runType||'—',
     runners:cur.runners.map((r,i)=>r?`${i+1}塁`:'').filter(Boolean).join('/')||'なし',
     bso:`${cur.balls}-${cur.strikes}-${cur.outsCount}`,
     catchOrder: catchOrder.slice().sort((a,b)=>a.order-b.order).map(c=>c.code).join('→'),
@@ -1934,6 +2602,7 @@ function confirmPitch(){
   // ── 自動進行 ──
   autoAdvance(entry);
   resetCur();
+  autoSave();
 }
 
 function rebuildLog(){
@@ -1952,47 +2621,74 @@ function autoAdvance(entry){
   const batter = offPl[cur.order-1]||offPl[0];
   const batterId = batter?.id || null;
 
-  const isOut = ['見逃し三振','空振り三振','ゴロアウト','フライアウト','ライナーアウト','犠打','犠飛'].includes(hitResult)
-    || (['ゲッツー'].includes(hitResult));
+  // アウト判定
+  const isStrikeout = ['見逃し三振','空振り三振'].includes(result);
+  const isHitOut = ['凡打','ゴロアウト','フライアウト','ライナーアウト','犠打','犠飛','ゲッツー'].includes(hitResult);
+  const hasOuts = entry.outs !== null && entry.outs > 0;
+  const isOut = isStrikeout || isHitOut || hasOuts;
+
   const isReach = ['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(hitResult)
     || ['四球','死球'].includes(result);
 
   // 走者進塁処理
-  if(isReach){
-    const runners = [...cur.runners]; // [1塁,2塁,3塁]
-    const runnerIds = [...cur.runnerIds];
+  let runnerMoves = []; // [{from, to, name}] 矢印表示用
 
+  if(isReach){
+    const runners = [...cur.runners];
+    const runnerIds = [...cur.runnerIds];
     if(hitResult==='本塁打'){
       // 全員生還
-      cur.runners=[false,false,false];
-      cur.runnerIds=[null,null,null];
+      [0,1,2].forEach(i=>{ if(runners[i]){ const pl=offPl.find(p=>p.id===runnerIds[i]); runnerMoves.push({from:i+1,to:'本塁',name:pl?.name||''}); }});
+      runnerMoves.push({from:'打席',to:'本塁',name:batter?.name||''});
+      cur.runners=[false,false,false]; cur.runnerIds=[null,null,null];
     } else if(hitResult==='三塁打'){
-      cur.runners=[false,false,true];
-      cur.runnerIds=[null,null,batterId];
+      [0,1,2].forEach(i=>{ if(runners[i]){ const pl=offPl.find(p=>p.id===runnerIds[i]); runnerMoves.push({from:i+1,to:'本塁',name:pl?.name||''}); }});
+      runnerMoves.push({from:'打席',to:3,name:batter?.name||''});
+      cur.runners=[false,false,true]; cur.runnerIds=[null,null,batterId];
     } else if(hitResult==='二塁打'){
-      // 1塁走者→生還or3塁、2塁走者→生還、打者→2塁
-      const r3 = runners[0]; // 1塁走者は3塁へ
-      cur.runners=[false,true,r3];
-      cur.runnerIds=[null,batterId, r3?runnerIds[0]:null];
+      const r3=runners[0]; const pl0=offPl.find(p=>p.id===runnerIds[0]);
+      if(runners[1]){ const pl=offPl.find(p=>p.id===runnerIds[1]); runnerMoves.push({from:2,to:'本塁',name:pl?.name||''}); }
+      if(r3){ runnerMoves.push({from:1,to:'本塁',name:pl0?.name||''}); }
+      runnerMoves.push({from:'打席',to:2,name:batter?.name||''});
+      cur.runners=[false,true,false]; cur.runnerIds=[null,batterId,null];
     } else {
-      // 単打・四球・死球・エラー・野選・内野安打 → 押し出し進塁
-      const r3 = runners[1]; // 2塁→3塁
-      const r2 = runners[0]; // 1塁→2塁
-      cur.runners=[true, r2, r3];
-      cur.runnerIds=[batterId, r2?runnerIds[0]:null, r3?runnerIds[1]:null];
+      // 単打・四球・死球・エラー・野選 → 押し出し
+      const r3=runners[1]; const r2=runners[0];
+      const pl0=offPl.find(p=>p.id===runnerIds[0]), pl1=offPl.find(p=>p.id===runnerIds[1]), pl2=offPl.find(p=>p.id===runnerIds[2]);
+      if(runners[2]) runnerMoves.push({from:3,to:'本塁',name:pl2?.name||''});
+      if(r3) runnerMoves.push({from:2,to:3,name:pl1?.name||''});
+      if(r2) runnerMoves.push({from:1,to:2,name:pl0?.name||''});
+      runnerMoves.push({from:'打席',to:1,name:batter?.name||''});
+      cur.runners=[true,r2,r3]; cur.runnerIds=[batterId,r2?runnerIds[0]:null,r3?runnerIds[1]:null];
     }
-    // ビジュアル更新
-    [1,2,3].forEach(b=>{
-      document.getElementById('b'+b)?.classList.toggle('on', cur.runners[b-1]);
-    });
+    [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
   }
+
+  // 犠打：打者アウト、走者は1つ進塁
+  if(hitResult==='犠打'){
+    const runners=[...cur.runners]; const runnerIds=[...cur.runnerIds];
+    if(runners[2]){ const pl=offPl.find(p=>p.id===runnerIds[2]); runnerMoves.push({from:3,to:'本塁',name:pl?.name||''}); cur.runners[2]=false; cur.runnerIds[2]=null; }
+    if(runners[1]){ const pl=offPl.find(p=>p.id===runnerIds[1]); runnerMoves.push({from:2,to:3,name:pl?.name||''}); cur.runners[2]=true; cur.runnerIds[2]=runnerIds[1]; cur.runners[1]=false; cur.runnerIds[1]=null; }
+    if(runners[0]){ const pl=offPl.find(p=>p.id===runnerIds[0]); runnerMoves.push({from:1,to:2,name:pl?.name||''}); cur.runners[1]=true; cur.runnerIds[1]=runnerIds[0]; cur.runners[0]=false; cur.runnerIds[0]=null; }
+    [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
+  }
+
+  // 犠飛：打者アウト、3塁走者が生還（タッグアップ）
+  if(hitResult==='犠飛'){
+    const runners=[...cur.runners]; const runnerIds=[...cur.runnerIds];
+    if(runners[2]){ const pl=offPl.find(p=>p.id===runnerIds[2]); runnerMoves.push({from:3,to:'本塁',name:pl?.name||''}); cur.runners[2]=false; cur.runnerIds[2]=null; }
+    [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
+  }
+
+  // 進塁矢印をグラウンド図に表示
+  if(runnerMoves.length) showRunnerArrows(runnerMoves);
 
   if(isOut || isReach){
     let nextOrder = cur.order + 1;
     if(nextOrder > offPl.length) nextOrder = 1;
 
     if(isOut){
-      const addOuts = hitResult==='ゲッツー' ? 2 : (entry.outs||1);
+      const addOuts = isStrikeout ? 1 : hitResult==='ゲッツー' ? 2 : (entry.outs||1);
       const newO = Math.min(cur.outsCount + addOuts, 3);
       updateCountDots('o', newO);
       cur.outsCount = newO;
@@ -2003,9 +2699,11 @@ function autoAdvance(entry){
     }
     cur.balls=0; cur.strikes=0;
     updateCountDots('b',0); updateCountDots('s',0);
+
+    // 先に cur.order をセットしてからセレクトを更新
     cur.order = nextOrder;
-    document.getElementById('sel-order').value = offPl[nextOrder-1]?.id || '';
-    updateSituation();
+    buildOrderSelect(); // cur.order を反映した状態でリスト再構築
+    updateHeader();
   }
   updateRunnerDisplay();
 }
@@ -2028,7 +2726,8 @@ function advanceInning(){
     document.getElementById('sel-inning').value = String(nextInn);
     cur.order=1;
   }
-  updateSituation();
+  buildOrderSelect();
+  updateHeader();
   updateRunnerDisplay();
   alert(`${cur.inning}回${cur.tb}の攻撃です`);
 }
@@ -2039,10 +2738,11 @@ function updateRunnerDisplay(){
     const el = document.getElementById('rc'+b);
     const baseEl = document.getElementById('b'+b);
     if(!el) return;
-    const runnerId = cur.runnerIds ? cur.runnerIds[b-1] : null;
+    const runnerId = cur.runnerIds?.[b-1];
     const pl = runnerId ? offPl.find(p=>p.id===runnerId) : null;
     if(cur.runners[b-1]){
-      el.textContent = `${b}塁 ${pl ? (pl.num||pl.name) : '—'}`;
+      const dispName = pl ? `${pl.name}${pl.num?' (#'+pl.num+')':''}` : '—';
+      el.textContent = `${b}塁 ${dispName}`;
       el.classList.add('rc-on');
       if(baseEl) baseEl.classList.add('on');
     } else {
@@ -2051,6 +2751,8 @@ function updateRunnerDisplay(){
       if(baseEl) baseEl.classList.remove('on');
     }
   });
+  updateHeader();
+  drawMiniDiamond([], null);
 }
 
 // 選手交代
@@ -2061,51 +2763,97 @@ function toggleSubPanel(){
 }
 function initSubPanel(){
   const side=cur.tb==='表'?'a':'b';
-  const order=side==='a'?game.orderA:game.orderB;
+  const defSide=side==='a'?'b':'a'; // 守備側（投手交代はこちら）
+  const offOrder=side==='a'?game.orderA:game.orderB;
+  const defOrder=defSide==='a'?game.orderA:game.orderB;
   const sel=document.getElementById('sub-order');
-  sel.innerHTML='<option value="">選択...</option>'+order.map((p,i)=>`<option value="${i}">${i+1}番 ${p.name}</option>`).join('');
+  // 打者交代（攻撃側）＋投手交代（守備側）を分けて表示
+  sel.innerHTML='<option value="">選択...</option>'
+    +'<optgroup label="打者交代（攻撃側）">'
+    +offOrder.map((p,i)=>`<option value="off-${i}">${i+1}番 ${p.name}（${p.pos}）</option>`).join('')
+    +'</optgroup>'
+    +'<optgroup label="投手交代（守備側）">'
+    +defOrder.filter(p=>p.pos==='投手').map((p,i)=>`<option value="def-p">投手 ${p.name}</option>`).join('')
+    +'<option value="def-p">投手を交代する</option>'
+    +'</optgroup>';
   document.getElementById('sub-player').innerHTML='<option value="">選択...</option>';
 }
+
 function updateSubPlayerList(){
-  const idx=parseInt(document.getElementById('sub-order').value);
+  const val=document.getElementById('sub-order').value;
   const side=cur.tb==='表'?'a':'b';
-  const team=side==='a'?game.teamA:game.teamB;
+  const defSide=side==='a'?'b':'a';
   const sel=document.getElementById('sub-player');
-  if(!team||isNaN(idx)){sel.innerHTML='<option>選択...</option>';return;}
-  const allPl=teams.find(t=>t.id===team.id)?.players||[];
-  sel.innerHTML='<option value="">選択...</option>'+allPl.map(p=>`<option value="${p.name}">${p.name}${p.num?' (#'+p.num+')':''}</option>`).join('');
+
+  if(val.startsWith('off-')){
+    // 打者交代：攻撃側チームから選択
+    const team=side==='a'?game.teamA:game.teamB;
+    const allPl=teams.find(t=>t.id===team?.id)?.players||[];
+    sel.innerHTML='<option value="">選択...</option>'+allPl.map(p=>`<option value="${p.name}">${p.name}${p.num?' (#'+p.num+')':''} ${p.pos}</option>`).join('');
+  } else if(val==='def-p'){
+    // 投手交代：守備側チームの投手から選択
+    const team=defSide==='a'?game.teamA:game.teamB;
+    const allPl=teams.find(t=>t.id===team?.id)?.players||[];
+    const pitchers=allPl.filter(p=>p.pos==='投手');
+    sel.innerHTML='<option value="">選択...</option>'+pitchers.map(p=>`<option value="__pitcher__${p.name}">${p.name}${p.num?' (#'+p.num+')':''}</option>`).join('');
+    if(!pitchers.length) sel.innerHTML='<option>登録済み投手がいません</option>';
+  }
 }
+
 function doSubstitution(){
-  const idx=parseInt(document.getElementById('sub-order').value);
+  const val=document.getElementById('sub-order').value;
   const newName=document.getElementById('sub-player').value;
-  if(isNaN(idx)||!newName){alert('打順と選手を選択してください');return;}
+  if(!val||!newName){alert('交代元と交代選手を選択してください');return;}
   const side=cur.tb==='表'?'a':'b';
-  const order=side==='a'?game.orderA:game.orderB;
-  const team=side==='a'?game.teamA:game.teamB;
-  const allPl=teams.find(t=>t.id===team?.id)?.players||[];
-  const newPl=allPl.find(p=>p.name===newName);
-  if(newPl) order[idx]={...newPl,id:newPl.name,order:idx+1};
-  document.getElementById('sub-panel').style.display='none';
-  updateSituation();
-  alert(`${idx+1}番を${newName}に交代しました`);
+  const defSide=side==='a'?'b':'a';
+
+  if(val.startsWith('off-')){
+    // 打者交代
+    const idx=parseInt(val.replace('off-',''));
+    const order=side==='a'?game.orderA:game.orderB;
+    const team=side==='a'?game.teamA:game.teamB;
+    const allPl=teams.find(t=>t.id===team?.id)?.players||[];
+    const newPl=allPl.find(p=>p.name===newName);
+    if(newPl) order[idx]={...newPl,id:newPl.name,order:idx+1};
+    document.getElementById('sub-panel').style.display='none';
+    updateSituation();
+    alert(`${idx+1}番を${newName}に交代しました`);
+  } else if(val==='def-p'){
+    // 投手交代
+    const pitcherName=newName.replace('__pitcher__','');
+    const defOrder=defSide==='a'?game.orderA:game.orderB;
+    const pitcherIdx=defOrder.findIndex(p=>p.pos==='投手');
+    const team=defSide==='a'?game.teamA:game.teamB;
+    const allPl=teams.find(t=>t.id===team?.id)?.players||[];
+    const newPl=allPl.find(p=>p.name===pitcherName);
+    if(newPl){
+      if(pitcherIdx>-1) defOrder[pitcherIdx]={...newPl,id:newPl.name,pos:'投手'};
+      else defOrder.push({...newPl,id:newPl.name,pos:'投手'});
+    }
+    document.getElementById('sub-panel').style.display='none';
+    updateSituation();
+    alert(`投手を${pitcherName}に交代しました`);
+  }
 }
 
 function resetCur(){
   cur.zone=null;cur.zoneLabel='';cur.pitchType='';cur.speed=null;cur.stance='';
   cur.result='';cur.resultType='';cur.specials=[];cur.outs=null;cur.runs=null;
-  cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';
+  cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';cur.runType=null;
+  const rtp=document.getElementById('run-type-panel');
+  if(rtp) rtp.style.display='none';
   document.querySelectorAll('.sz-cell').forEach(c=>{c.classList.remove('sel');c.style.background='';c.style.color='';});
   document.querySelectorAll('.bz,.ptype-btn,.hq-btn,.stance-btn').forEach(b=>b.classList.remove('sel'));
   spdStr='1';
   document.getElementById('spd-disp').textContent='1';
   document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('s','b','h','o','sp'));
   document.querySelectorAll('.or-btn').forEach(b=>b.classList.remove('sel-o','sel-r'));
-  document.querySelectorAll('.field-zone').forEach(z=>z.classList.remove('sel'));
-  document.getElementById('spd-disp').textContent='—';
   document.getElementById('zone-disp').textContent='—';
   document.getElementById('field-disp').textContent='—';
   document.getElementById('memo-box').value='';
   document.getElementById('inplay-section').classList.remove('show');
+  const rrb=document.getElementById('runner-result-box');
+  if(rrb) rrb.style.display='none';
   cur.fieldX=null; cur.fieldY=null;
   cur.editingNum=null;
   pendingDot = null;
@@ -2258,7 +3006,7 @@ function loadEntry(e){
   cur.editingNum = e.num;
 }
 
-function clearLog(){if(!confirm('クリアしますか？'))return;pitchLog=[];document.getElementById('log-tbody').innerHTML='';document.getElementById('log-cnt').textContent='0';document.getElementById('hdr-cnt').textContent='0球';scores={a:Array(9).fill(null),b:Array(9).fill(null)};hits={a:0,b:0};errs={a:0,b:0};updateScoreboard();fieldDots=[];pendingDot=null;const c=document.getElementById('field-canvas');if(c)drawField(c);}
+function clearLog(){if(!confirm('クリアしますか？'))return;pitchLog=[];document.getElementById('log-tbody').innerHTML='';document.getElementById('log-cnt').textContent='0';document.getElementById('hdr-cnt').textContent='0球';scores={a:Array(9).fill(null),b:Array(9).fill(null)};hits={a:0,b:0};errs={a:0,b:0};updateScoreboard();fieldDots=[];pendingDot=null;const c=document.getElementById('field-canvas');if(c)drawField(c);autoSave();}
 
 // ===== CSV =====
 function exportCSV(){
@@ -2442,7 +3190,7 @@ function renderBatterAnalysis(){
     if(!p.pitchType) return;
     if(!ptRes[p.pitchType]) ptRes[p.pitchType]={hit:0,out:0,other:0};
     if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)) ptRes[p.pitchType].hit++;
-    else if(['ゴロアウト','フライアウト','ライナーアウト','ゲッツー','見逃し三振','空振り三振'].includes(p.result)||['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)) ptRes[p.pitchType].out++;
+    else if(['ゴロアウト','フライアウト','ライナーアウト','ゲッツー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)) ptRes[p.pitchType].out++;
     else ptRes[p.pitchType].other++;
   });
   const ptKeys=Object.keys(ptRes);
@@ -2462,7 +3210,7 @@ function renderFieldAnalysis(){
   const logs = pitchLog.filter(p=>{
     if(!p.fieldX||!p.fieldY) return false;
     if(filter==='hit') return ['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult);
-    if(filter==='out') return ['ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult);
+    if(filter==='out') return ['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult);
     if(filter==='foul') return p.result==='ファール';
     return true;
   });
@@ -2495,7 +3243,7 @@ function renderFieldAnalysis(){
   ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+ofR*1.08,cy-ofR*1.08); ctx.stroke();
 
   // ドットを描画（落下点）
-  const COLORS={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#1E7EC8','内野安打':'#1E7EC8','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#E03F3F','犠打':'#7C5CBF','犠飛':'#7C5CBF','エラー':'#F5A623','野選':'#F5A623','ファール':'#F5A623'};
+  const COLORS={'単打':'#1E7EC8','二塁打':'#1E7EC8','三塁打':'#1E7EC8','本塁打':'#1E7EC8','内野安打':'#1E7EC8','凡打':'#E03F3F','ゴロアウト':'#E03F3F','フライアウト':'#E03F3F','ライナーアウト':'#E03F3F','ゲッツー':'#E03F3F','犠打':'#7C5CBF','犠飛':'#7C5CBF','エラー':'#F5A623','野選':'#F5A623','ファール':'#F5A623'};
   logs.forEach(p=>{
     if(!p.fieldX||!p.fieldY) return;
     // スケール変換（元の310x300キャンバスから320x310に）
@@ -2613,11 +3361,130 @@ function renderFlowAnalysis(){
     </tr>`;}).join('')}</tbody>`;
 }
 
+// ===== SAVE / LOAD =====
+const STORAGE_KEY = 'pixelscore_v1';
+
+function saveAll(){
+  try {
+    const data = {
+      teams,
+      pitchLog,
+      game: {
+        title:game.title, date:game.date, place:game.place,
+        teamA:game.teamA, teamB:game.teamB,
+        orderA:game.orderA, orderB:game.orderB,
+        dhA:game.dhA, dhB:game.dhB,
+        dhPlayerA:game.dhPlayerA, dhPlayerB:game.dhPlayerB,
+        pitcherA:game.pitcherA, pitcherB:game.pitcherB,
+      },
+      scores, hits, errs,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e){ console.warn('保存エラー:', e); }
+}
+
+function loadAll(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data.teams)    teams = data.teams;
+    if(data.pitchLog) pitchLog = data.pitchLog;
+    if(data.game){
+      Object.assign(game, data.game);
+    }
+    if(data.scores) scores = data.scores;
+    if(data.hits)   hits   = data.hits;
+    if(data.errs)   errs   = data.errs;
+    return data.savedAt;
+  } catch(e){ console.warn('読み込みエラー:', e); return false; }
+}
+
+// 変更のたびに自動保存（debounce 2秒）
+let _saveTimer = null;
+function autoSave(){
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveAll, 2000);
+}
+
+// JSONバックアップのエクスポート
+function exportBackup(){
+  const data = {
+    teams, pitchLog, game,
+    scores, hits, errs,
+    exportedAt: new Date().toISOString(),
+    version: 1,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pixelscore_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// JSONバックアップの読み込み
+function importBackup(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if(data.teams)    teams = data.teams;
+      if(data.pitchLog) pitchLog = data.pitchLog;
+      if(data.game)     Object.assign(game, data.game);
+      if(data.scores)   scores = data.scores;
+      if(data.hits)     hits   = data.hits;
+      if(data.errs)     errs   = data.errs;
+      saveAll();
+      renderTeams();
+      renderHomeStats();
+      alert(`✅ 読み込み完了！\nチーム: ${teams.length}チーム\n投球ログ: ${pitchLog.length}球`);
+    } catch(err){
+      alert('読み込みに失敗しました。正しいバックアップファイルか確認してください。');
+    }
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
 // ===== BOOT =====
 window.addEventListener('DOMContentLoaded', function(){
+  // 保存データを読み込み
+  const savedAt = loadAll();
   renderTeams();
-  document.getElementById('s-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('s-date').value = game.date || new Date().toISOString().slice(0,10);
+
+  // ホーム画面にバックアップボタンを追加
+  const homeRecent = document.getElementById('home-recent');
+  if(homeRecent){
+    const backupDiv = document.createElement('div');
+    backupDiv.style.cssText='display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;';
+    backupDiv.innerHTML=`
+      <button onclick="exportBackup()" class="btn" style="font-size:12px;flex:1;">
+        💾 データをバックアップ
+      </button>
+      <label class="btn" style="font-size:12px;flex:1;cursor:pointer;text-align:center;">
+        📂 バックアップを読み込む
+        <input type="file" accept=".json" style="display:none;" onchange="importBackup(this)">
+      </label>`;
+    homeRecent.appendChild(backupDiv);
+  }
+
+  if(savedAt){
+    const d = new Date(savedAt);
+    const label = `前回の保存: ${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const badge = document.createElement('div');
+    badge.style.cssText='font-size:11px;color:var(--muted);text-align:center;margin-top:4px;';
+    badge.textContent=label;
+    const homeRecent2 = document.getElementById('home-recent');
+    if(homeRecent2) homeRecent2.appendChild(badge);
+  }
+
   showScreen('home');
+  renderHomeStats();
 });
 </script>
 <!-- ===== ANALYSIS SCREEN ===== -->
