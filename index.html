@@ -83,6 +83,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 .count-group{display:flex;align-items:center;gap:5px;}
 .clabel{font-size:11px;font-weight:700;color:var(--muted);}
 .cdot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border);background:var(--white);cursor:pointer;display:inline-block;}
+.cdot.preview-dot{background:rgba(245,166,35,.4);border-color:rgba(245,166,35,.6);}
 .cdot.b-on{background:var(--green);border-color:var(--green);}
 .cdot.s-on{background:var(--amber);border-color:var(--amber);}
 .cdot.o-on{background:var(--red);border-color:var(--red);}
@@ -273,6 +274,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     </div>
 
     <!-- 直近の試合 -->
+    <!-- バックアップ -->
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button onclick="exportBackup()" class="btn" style="font-size:12px;flex:1;">💾 データをバックアップ</button>
+      <label class="btn" style="font-size:12px;flex:1;cursor:pointer;text-align:center;">
+        📂 バックアップを読み込む
+        <input type="file" accept=".json" style="display:none;" onchange="importBackup(this)">
+      </label>
+    </div>
     <div id="home-recent" style="margin-top:8px;"></div>
   </div>
 </div>
@@ -379,6 +388,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     <div id="hdr-runners" style="display:flex;gap:4px;margin-left:8px;align-items:center;"></div>
     <div style="margin-left:auto;display:flex;gap:6px;">
       <button class="hdr-btn" onclick="gotoTab('setup')">設定</button>
+      <button class="hdr-btn" onclick="toggleVideoPanel()" id="btn-video">🎬</button>
       <button class="export-btn" onclick="exportCSV()">CSV出力</button>
     </div>
   </div>
@@ -390,6 +400,44 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     <button onclick="document.getElementById('pitcher-change-panel').style.display='none'"
       style="margin-top:8px;font-size:11px;color:rgba(255,255,255,.5);background:none;border:none;cursor:pointer;">キャンセル</button>
   </div>
+
+  <!-- 動画パネル -->
+  <div id="video-panel" style="background:#111;border-bottom:1px solid #333;display:none;">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:#1a1a2e;">
+      <span style="font-size:12px;font-weight:700;color:#fff;">🎬 動画</span>
+      <span id="video-timestamp-disp" style="font-size:11px;color:rgba(255,255,255,.5);"></span>
+      <div style="margin-left:auto;display:flex;gap:6px;">
+        <button onclick="toggleVideoPanel()" style="font-size:11px;color:rgba(255,255,255,.5);background:none;border:none;cursor:pointer;">▲ 閉じる</button>
+      </div>
+    </div>
+    <!-- ローカル動画 -->
+    <div id="video-local-wrap" style="display:none;text-align:center;">
+      <video id="video-player" controls style="max-width:100%;max-height:280px;display:block;margin:0 auto;"></video>
+    </div>
+    <!-- YouTube -->
+    <div id="video-yt-wrap" style="display:none;position:relative;padding-bottom:40%;height:0;">
+      <iframe id="yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allowfullscreen allow="autoplay"></iframe>
+    </div>
+    <!-- 動画未設定時 -->
+    <div id="video-setup-wrap" style="padding:14px;display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:4px;">動画を設定してください</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <label class="btn" style="font-size:12px;cursor:pointer;background:var(--blue);color:#fff;border-color:var(--blue);">
+          📁 動画ファイルを読み込む
+          <input type="file" accept="video/*" style="display:none;" onchange="loadVideoFile(this)">
+        </label>
+        <div style="display:flex;gap:4px;flex:1;min-width:200px;">
+          <input id="yt-url-input" type="text" placeholder="YouTube URL を貼り付け" style="flex:1;font-size:12px;padding:5px 8px;">
+          <button onclick="loadYouTubeUrl()" class="btn btn-primary" style="font-size:12px;white-space:nowrap;">読み込む</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 動画ボタン（ヘッダーに追加） -->
+  <style>
+    #video-panel video { background:#000; }
+  </style>
 
   <div class="scoreboard">
     <table class="score-table"><thead><tr>
@@ -523,8 +571,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
       <div class="res-section">
         <div class="res-section-label">ボール</div>
         <div class="res-grid">
-          <button class="res-btn" onclick="selectResult(this,'ボール','b')">ボール</button>
-          <button class="res-btn" onclick="selectResult(this,'四球','b')">四球</button>
+          <button class="res-btn" id="btn-ball" onclick="selectBallBtn()">ボール</button>
           <button class="res-btn" onclick="selectResult(this,'死球','b')">死球</button>
           <button class="res-btn" onclick="selectResult(this,'ボーク','b')">ボーク</button>
         </div>
@@ -541,9 +588,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <button class="res-btn" onclick="toggleSp(this,'振り逃げ')">振り逃げ</button>
           <button class="res-btn" onclick="toggleSp(this,'暴投')">暴投</button>
           <button class="res-btn" onclick="toggleSp(this,'捕逸')">捕逸</button>
-          <button class="res-btn" onclick="toggleSp(this,'盗塁')">盗塁</button>
+          <button class="res-btn" id="btn-steal" onclick="toggleSteal(this)">盗塁</button>
           <button class="res-btn" onclick="toggleSp(this,'牽制')">牽制</button>
           <button class="res-btn" onclick="toggleSp(this,'スリバン失敗')">スリバン失敗</button>
+        </div>
+        <!-- 盗塁：誰が盗塁したか -->
+        <div id="steal-runner-panel" style="display:none;margin-top:6px;padding:6px 8px;background:var(--blue-light);border-radius:6px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">盗塁した走者</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;" id="steal-runner-btns"></div>
         </div>
       </div>
 
@@ -666,7 +718,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <th>#</th><th>回</th><th>打順</th><th>投手</th><th>打者</th>
           <th>球種</th><th>球速</th><th>コース</th><th>結果</th><th>打球質</th>
           <th>落下点</th><th>打球結果</th><th>特殊</th><th>アウト</th><th>得点</th>
-          <th>走者</th><th>BSO</th><th>メモ</th>
+          <th>走者</th><th>BSO</th><th>🎬</th><th>メモ</th>
         </tr></thead>
         <tbody id="log-tbody"></tbody>
       </table>
@@ -1632,50 +1684,95 @@ function clearSpeed(){
 }
 
 // ===== RESULT =====
-function selectResult(btn,val,type){
-  document.querySelectorAll('.res-btn:not([onclick*="toggleSp"])').forEach(b=>b.classList.remove('s','b','h','o','sp'));
-  btn.classList.add(type);
+function selectResult(btn, val, type){
+  // ストライク・ボール・打球ボタンのハイライトをすべてクリア
+  document.querySelectorAll('.res-btn').forEach(b=>{
+    // 特殊ボタン（sp状態のもの）はクリアしない
+    if(!b.classList.contains('sp')){
+      b.classList.remove('s','b','h','o');
+    }
+  });
+  // 押されたボタンをハイライト
+  if(btn) btn.classList.add(type);
 
   // 2ストライク時の三振変換
   let finalVal = val;
   if(val==='見逃しスト' && cur.strikes>=2) finalVal='見逃し三振';
-  if(val==='空振り' && cur.strikes>=2) finalVal='空振り三振';
+  if(val==='空振り'     && cur.strikes>=2) finalVal='空振り三振';
   cur.result=finalVal; cur.resultType=type;
 
-  // ファールまたはインプレーで落下点・打球詳細を表示
+  // ファール・インプレーで打球詳細を表示
   const showField = (val==='インプレー' || val==='ファール' || val==='ファールチップ');
-  const showHQ = val==='インプレー';
-  const showHR = val==='インプレー';
   document.getElementById('inplay-section').classList.toggle('show', showField);
-  if(document.getElementById('hq-wrap')) document.getElementById('hq-wrap').style.display=showHQ?'':'none';
-  if(document.getElementById('hit-result-wrap')) document.getElementById('hit-result-wrap').style.display=showHR?'':'none';
-  if(document.getElementById('inplay-title')) document.getElementById('inplay-title').textContent=val==='インプレー'?'打球詳細':'落下点';
-  if(!showField){cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';}
+  const hqw = document.getElementById('hq-wrap');
+  const hrw = document.getElementById('hit-result-wrap');
+  const ipt = document.getElementById('inplay-title');
+  if(hqw) hqw.style.display = val==='インプレー' ? '' : 'none';
+  if(hrw) hrw.style.display = val==='インプレー' ? '' : 'none';
+  if(ipt) ipt.textContent   = val==='インプレー' ? '打球詳細' : '落下点';
+  if(!showField){ cur.hitQuality=''; cur.fieldZone=''; cur.fieldLabel=''; cur.hitResult=''; }
 
-  // BSO自動更新
-  if(val==='ボール'||val==='四球'||val==='死球'||val==='ボーク'){
-    const newB=Math.min(cur.balls+1,3);
-    updateCountDots('b',newB);
-    cur.balls=newB;
-  } else if(val==='見逃しスト'||val==='空振り'||val==='ファール'||val==='ファールチップ'){
-    const isFoul = val==='ファール'||val==='ファールチップ';
-    // ファール・ファールチップは2ストライク時には増えない
-    if(!isFoul || cur.strikes < 2){
-      const newS=Math.min(cur.strikes+1,2);
-      updateCountDots('s',newS);
-      cur.strikes=newS;
-    }
-  }
+  updatePreview();
   updateConfirm();
 }
 
-function updateCountDots(type,count){
-  const ids=type==='b'?['db0','db1','db2']:type==='s'?['ds0','ds1']:['do0','do1'];
-  const cls=type==='b'?'b-on':type==='s'?'s-on':'o-on';
-  ids.forEach((id,i)=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.toggle(cls,i<count);
+// ===== プレビュー（BSO・ランナーの仮表示）=====
+function calcPreview(){
+  const result = cur.result;
+  const hitResult = cur.hitResult;
+  let pb = cur.balls, ps = cur.strikes, po = cur.outsCount;
+  let pr = [...cur.runners];
+  if(['ボール','四球','死球','ボーク'].includes(result)) pb = Math.min(pb+1,3);
+  else if(['見逃しスト','見逃し三振','空振り','空振り三振'].includes(result)) ps = Math.min(ps+1,2);
+  else if(['ファール','ファールチップ'].includes(result)){ if(ps<2) ps++; }
+  if(['見逃し三振','空振り三振'].includes(result)) po = Math.min(po+1,3);
+  if(['凡打','ゴロアウト','フライアウト','ライナーアウト','犠打','犠飛'].includes(hitResult)) po = Math.min(po+1,3);
+  if(hitResult==='ゲッツー') po = Math.min(po+2,3);
+  const isReach = ['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(hitResult)||['四球','死球'].includes(result);
+  if(isReach){
+    if(hitResult==='本塁打') pr=[false,false,false];
+    else if(hitResult==='三塁打') pr=[false,false,true];
+    else if(hitResult==='二塁打') pr=[false,true,pr[0]];
+    else { const r3=pr[1],r2=pr[0]; pr=[true,r2,r3]; }
+  }
+  if(hitResult==='犠打'){ const nr=[false,false,false]; if(pr[0]) nr[1]=true; if(pr[1]) nr[2]=true; pr=nr; }
+  if(hitResult==='犠飛') pr=[pr[0],pr[1],false];
+  return {pb, ps, po, pr};
+}
+
+function updatePreview(){
+  if(!cur.result){ clearPreview(); return; }
+  const {pb, ps, po, pr} = calcPreview();
+  // BSOプレビュードット（preview-dotクラスだけ追加、b-on等は触らない）
+  [['b',['db0','db1','db2'],cur.balls,pb],
+   ['s',['ds0','ds1'],cur.strikes,ps],
+   ['o',['do0','do1'],cur.outsCount,po]].forEach(([t,ids,actual,preview])=>{
+    ids.forEach((id,i)=>{
+      const el=document.getElementById(id); if(!el) return;
+      el.classList.toggle('preview-dot', i>=actual && i<preview);
+    });
   });
+  drawMiniDiamond([], null, pr);
+  updateResultButtonLabels();
+}
+
+function clearPreview(){
+  document.querySelectorAll('.preview-dot').forEach(el=>el.classList.remove('preview-dot'));
+  drawMiniDiamond([], null, null);
+}
+
+function previewCountDots(){ /* 旧関数 - 使用しない */ }
+
+function updateCountDots(type, count){
+  const ids = type==='b'?['db0','db1','db2']:type==='s'?['ds0','ds1']:['do0','do1'];
+  const cls  = type==='b'?'b-on':type==='s'?'s-on':'o-on';
+  ids.forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.remove(cls, 'preview-dot');
+    if(i < count) el.classList.add(cls);
+  });
+  updateResultButtonLabels();
 }
 function toggleSp(btn,val){
   const i=cur.specials.indexOf(val);
@@ -1684,12 +1781,98 @@ function toggleSp(btn,val){
   updateConfirm();
 }
 
-// ===== INPLAY =====
+// ===== ボールボタン（3B時に四球に変化） =====
+function selectBallBtn(){
+  const btn = document.getElementById('btn-ball');
+  if(cur.balls >= 3){
+    selectResult(btn, '四球', 'b');
+  } else {
+    selectResult(btn, 'ボール', 'b');
+  }
+}
+
+// ===== カウントに応じてボタンラベルを動的更新 =====
+function updateResultButtonLabels(){
+  const missBtn  = document.getElementById('btn-miss');
+  const swingBtn = document.getElementById('btn-swing');
+  const ballBtn  = document.getElementById('btn-ball');
+
+  if(missBtn){
+    const label = cur.strikes >= 2 ? '見逃し三振' : '見逃しスト';
+    missBtn.textContent = label;
+  }
+  if(swingBtn){
+    const label = cur.strikes >= 2 ? '空振り三振' : '空振り';
+    swingBtn.textContent = label;
+  }
+  if(ballBtn){
+    const label = cur.balls >= 3 ? '四球' : 'ボール';
+    ballBtn.textContent = label;
+    ballBtn.style.fontWeight = cur.balls >= 3 ? '700' : '';
+    ballBtn.style.color = cur.balls >= 3 ? 'var(--blue)' : '';
+    ballBtn.style.borderColor = cur.balls >= 3 ? 'var(--blue)' : '';
+  }
+}
+
+// ===== 盗塁：誰が盗塁したか =====
+function toggleSteal(btn){
+  const isOn = btn.classList.contains('sp');
+  if(isOn){
+    // 解除
+    btn.classList.remove('sp');
+    cur.specials = cur.specials.filter(s=>!s.startsWith('盗塁'));
+    cur.stealRunner = null;
+    document.getElementById('steal-runner-panel').style.display = 'none';
+  } else {
+    btn.classList.add('sp');
+    if(!cur.specials.some(s=>s.startsWith('盗塁'))) cur.specials.push('盗塁');
+    // 走者選択パネルを表示
+    renderStealPanel();
+    document.getElementById('steal-runner-panel').style.display = 'block';
+  }
+  updateConfirm();
+}
+
+function renderStealPanel(){
+  const offPl = cur.tb==='表'?game.orderA:game.orderB;
+  const btns = document.getElementById('steal-runner-btns');
+  if(!btns) return;
+  const runners = [1,2,3].filter(b=>cur.runners[b-1]);
+  if(!runners.length){
+    btns.innerHTML = '<span style="font-size:11px;color:var(--muted);">走者がいません</span>';
+    return;
+  }
+  btns.innerHTML = runners.map(b=>{
+    const rId = cur.runnerIds?.[b-1];
+    const pl = rId ? offPl.find(p=>p.id===rId) : null;
+    const name = pl ? pl.name : `${b}塁走者`;
+    const sel = cur.stealRunner===b;
+    return `<button onclick="selectStealRunner(${b})"
+      style="padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;cursor:pointer;
+             border:1.5px solid ${sel?'var(--blue)':'var(--border)'};
+             background:${sel?'var(--blue)':'var(--white)'};color:${sel?'#fff':'var(--text)'};">
+      ${b}塁 ${name}
+    </button>`;
+  }).join('');
+}
+
+function selectStealRunner(base){
+  cur.stealRunner = base;
+  // specials を更新（「盗塁:1塁」のように記録）
+  cur.specials = cur.specials.filter(s=>!s.startsWith('盗塁'));
+  const offPl = cur.tb==='表'?game.orderA:game.orderB;
+  const rId = cur.runnerIds?.[base-1];
+  const pl = rId ? offPl.find(p=>p.id===rId) : null;
+  const name = pl ? pl.name : `${base}塁走者`;
+  cur.specials.push(`盗塁:${name}`);
+  renderStealPanel();
+  updateConfirm();
+}
 function selectHQ(btn,val){
   document.querySelectorAll('.hq-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');cur.hitQuality=val;updateConfirm();
 }
-function drawMiniDiamond(arrows, selectedBase){
+function drawMiniDiamond(arrows, selectedBase, previewRunners){
   const canvas = document.getElementById('mini-diamond');
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -1773,10 +1956,24 @@ function drawMiniDiamond(arrows, selectedBase){
     ctx.restore();
   });
 
-  // ランナー丸
-  const offPl = (typeof cur!=='undefined') ? (cur.tb==='表'?game.orderA:game.orderB) : [];
-  const runners = (typeof cur!=='undefined') ? cur.runners : [false,false,false];
+  // ランナー・選手情報を先に取得
+  const offPl = (typeof cur!=='undefined'&&typeof game!=='undefined') ? (cur.tb==='表'?game.orderA:game.orderB) : [];
+  const runners   = (typeof cur!=='undefined') ? cur.runners   : [false,false,false];
   const runnerIds = (typeof cur!=='undefined') ? (cur.runnerIds||[]) : [];
+
+  // プレビューランナー（薄い表示）
+  if(previewRunners){
+    [1,2,3].forEach(b=>{
+      if(previewRunners[b-1] && !runners[b-1]){
+        const pos=bp[b]; if(!pos) return;
+        ctx.beginPath(); ctx.arc(pos.x,pos.y,11,0,Math.PI*2);
+        ctx.fillStyle='rgba(245,166,35,0.35)';
+        ctx.fill();
+        ctx.strokeStyle='rgba(245,166,35,0.7)'; ctx.lineWidth=1.5;
+        ctx.setLineDash([3,2]); ctx.stroke(); ctx.setLineDash([]);
+      }
+    });
+  }
 
   // 選択中の場合は移動先をハイライト
   if(selectedBase){
@@ -2347,6 +2544,7 @@ function selectHitResult(btn,val){
   }
 
   refreshFieldDotColor();
+  updatePreview();
   updateConfirm();
 }
 
@@ -2528,6 +2726,29 @@ function updateConfirm(){
 function confirmPitch(){
   if(!cur.result){alert('投球結果を選択してください');return;}
 
+  // ── 確定時にBSOカウントを更新（ここで一度だけ）──
+  const r = cur.result;
+  if(['ボール','四球','死球','ボーク'].includes(r)){
+    cur.balls = Math.min(cur.balls+1, 3);
+  } else if(['見逃しスト','見逃し三振','空振り','空振り三振'].includes(r)){
+    cur.strikes = Math.min(cur.strikes+1, 2);
+  } else if(['ファール','ファールチップ'].includes(r)){
+    if(cur.strikes < 2) cur.strikes++;
+  }
+  // ドット表示を即時反映（previewクラスをすべて除去してから正式に点灯）
+  ['b','s','o'].forEach(t=>{
+    const ids = t==='b'?['db0','db1','db2']:t==='s'?['ds0','ds1']:['do0','do1'];
+    const clsOn  = t==='b'?'b-on':t==='s'?'s-on':'o-on';
+    const count  = t==='b'?cur.balls:t==='s'?cur.strikes:cur.outsCount;
+    ids.forEach((id,i)=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.remove(clsOn,'preview-dot');
+      if(i < count) el.classList.add(clsOn);
+    });
+  });
+  updateResultButtonLabels();
+
   // アウトの自動補完
   if(['見逃し三振','空振り三振'].includes(cur.result) && cur.outs===null) cur.outs=1;
   if(['ゴロアウト','フライアウト','ライナーアウト','凡打','犠打','犠飛'].includes(cur.hitResult) && cur.outs===null) cur.outs=1;
@@ -2560,6 +2781,7 @@ function confirmPitch(){
     runners:cur.runners.map((r,i)=>r?`${i+1}塁`:'').filter(Boolean).join('/')||'なし',
     bso:`${cur.balls}-${cur.strikes}-${cur.outsCount}`,
     catchOrder: catchOrder.slice().sort((a,b)=>a.order-b.order).map(c=>c.code).join('→'),
+    videoTime: getCurrentVideoTime(),
     memo
   };
 
@@ -2839,9 +3061,11 @@ function doSubstitution(){
 function resetCur(){
   cur.zone=null;cur.zoneLabel='';cur.pitchType='';cur.speed=null;cur.stance='';
   cur.result='';cur.resultType='';cur.specials=[];cur.outs=null;cur.runs=null;
-  cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';cur.runType=null;
+  cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';cur.runType=null;cur.stealRunner=null;
   const rtp=document.getElementById('run-type-panel');
   if(rtp) rtp.style.display='none';
+  const stp=document.getElementById('steal-runner-panel');
+  if(stp) stp.style.display='none';
   document.querySelectorAll('.sz-cell').forEach(c=>{c.classList.remove('sel');c.style.background='';c.style.color='';});
   document.querySelectorAll('.bz,.ptype-btn,.hq-btn,.stance-btn').forEach(b=>b.classList.remove('sel'));
   spdStr='1';
@@ -2852,6 +3076,12 @@ function resetCur(){
   document.getElementById('field-disp').textContent='—';
   document.getElementById('memo-box').value='';
   document.getElementById('inplay-section').classList.remove('show');
+  // preview-dotを消して確定済みカウントを正確に再描画
+  document.querySelectorAll('.preview-dot').forEach(el=>el.classList.remove('preview-dot'));
+  updateCountDots('b', cur.balls);
+  updateCountDots('s', cur.strikes);
+  updateCountDots('o', cur.outsCount);
+  updateResultButtonLabels();
   const rrb=document.getElementById('runner-result-box');
   if(rrb) rrb.style.display='none';
   cur.fieldX=null; cur.fieldY=null;
@@ -2883,6 +3113,11 @@ function addLogRow(e){
   const tr=document.createElement('tr');
   tr.style.cursor='pointer';
   tr.title='クリックで編集';
+  const videoCell = e.videoTime!=null
+    ? `<td><button onclick="event.stopPropagation();jumpToVideoTime(${e.videoTime})"
+         style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;">
+         ▶ ${formatTime(e.videoTime)}</button></td>`
+    : `<td style="color:var(--muted);font-size:10px;">—</td>`;
   tr.innerHTML=`
     <td>${e.num}</td><td>${e.inning}回${e.tb}</td><td>${e.order}番</td>
     <td>${e.pitcher}</td><td>${e.batter}</td>
@@ -2893,7 +3128,9 @@ function addLogRow(e){
     <td>${e.hitResult||'—'}</td><td>${e.specials.join('/')||'—'}</td>
     <td>${e.outs!==null?(e.outs===0?'なし':e.outs+'アウト'):'—'}</td>
     <td>${e.runs!==null?(e.runs===0?'なし':e.runs+'点'):'—'}</td>
-    <td>${e.runners}</td><td>${e.bso}</td><td>${e.memo||''}</td>`;
+    <td>${e.runners}</td><td>${e.bso}</td>
+    ${videoCell}
+    <td>${e.memo||''}</td>`;
   tr.addEventListener('click', ()=> loadEntry(e));
   tr.addEventListener('mouseenter', ()=> tr.style.outline='2px solid var(--blue)');
   tr.addEventListener('mouseleave', ()=> tr.style.outline='');
@@ -3450,28 +3687,128 @@ function importBackup(input){
   reader.readAsText(file);
 }
 
+// ===== VIDEO =====
+let _videoMode = null; // 'local' | 'youtube'
+let _ytVideoId = null;
+let _ytReady = false;
+let _ytPlayer = null;
+
+function formatTime(sec){
+  if(sec==null) return '—';
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = Math.floor(sec%60);
+  if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function toggleVideoPanel(){
+  const panel = document.getElementById('video-panel');
+  panel.style.display = panel.style.display==='none' ? 'block' : 'none';
+}
+
+function loadVideoFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const video = document.getElementById('video-player');
+  video.src = url;
+  _videoMode = 'local';
+  document.getElementById('video-local-wrap').style.display = 'block';
+  document.getElementById('video-yt-wrap').style.display = 'none';
+  document.getElementById('video-setup-wrap').style.display = 'none';
+  document.getElementById('btn-video').style.background = 'var(--blue)';
+}
+
+function loadYouTubeUrl(){
+  const url = document.getElementById('yt-url-input').value.trim();
+  if(!url) return;
+  const m = url.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+  if(!m){ alert('正しいYouTube URLを入力してください'); return; }
+  _ytVideoId = m[1];
+  _videoMode = 'youtube';
+
+  const wrap = document.getElementById('video-yt-wrap');
+  // 埋め込みiframe + 外部リンクボタンを表示
+  wrap.innerHTML = `
+    <div style="position:relative;padding-bottom:40%;height:0;">
+      <iframe id="yt-player"
+        src="https://www.youtube.com/embed/${_ytVideoId}?enablejsapi=1"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;"
+        frameborder="0" allowfullscreen allow="autoplay">
+      </iframe>
+    </div>
+    <div style="padding:6px 10px;background:#111;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;color:rgba(255,255,255,.5);">※ 埋め込み禁止の動画は↓から開いて再生時刻を手動で合わせてください</span>
+      <a href="https://www.youtube.com/watch?v=${_ytVideoId}" target="_blank"
+         style="font-size:11px;color:var(--blue);white-space:nowrap;">YouTubeで開く ↗</a>
+    </div>`;
+
+  wrap.style.display = 'block';
+  document.getElementById('video-local-wrap').style.display = 'none';
+  document.getElementById('video-setup-wrap').style.display = 'none';
+  document.getElementById('btn-video').style.background = 'var(--blue)';
+  document.getElementById('btn-video').style.color = '#fff';
+
+  // IFrame API
+  if(!window.YT){
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  }
+}
+
+// YouTube IFrame API コールバック
+window.onYouTubeIframeAPIReady = function(){
+  _ytReady = true;
+  const iframe = document.getElementById('yt-player');
+  if(iframe.src.includes('youtube.com')){
+    _ytPlayer = new YT.Player('yt-player', {
+      events: { onReady: ()=>{ _ytReady = true; } }
+    });
+  }
+};
+
+function getCurrentVideoTime(){
+  if(_videoMode === 'local'){
+    const v = document.getElementById('video-player');
+    return v && v.readyState > 0 ? v.currentTime : null;
+  } else if(_videoMode === 'youtube' && _ytPlayer && _ytPlayer.getCurrentTime){
+    try { return _ytPlayer.getCurrentTime(); } catch(e){ return null; }
+  }
+  return null;
+}
+
+function jumpToVideoTime(sec){
+  if(sec==null) return;
+  // 動画パネルを開く
+  document.getElementById('video-panel').style.display = 'block';
+  // 少し前から再生（投球の前2秒から）
+  const seekTo = Math.max(0, sec - 2);
+  if(_videoMode === 'local'){
+    const v = document.getElementById('video-player');
+    v.currentTime = seekTo;
+    v.play();
+  } else if(_videoMode === 'youtube'){
+    if(_ytPlayer && _ytPlayer.seekTo){
+      _ytPlayer.seekTo(seekTo, true);
+      _ytPlayer.playVideo();
+    } else {
+      // IFrame API未読み込みの場合はURLパラメータで代替
+      const iframe = document.getElementById('yt-player');
+      iframe.src = `https://www.youtube.com/embed/${_ytVideoId}?start=${Math.floor(seekTo)}&autoplay=1&enablejsapi=1`;
+    }
+  }
+  // タイムスタンプ表示
+  document.getElementById('video-timestamp-disp').textContent = `▶ ${formatTime(seekTo)} から再生`;
+}
+
 // ===== BOOT =====
 window.addEventListener('DOMContentLoaded', function(){
   // 保存データを読み込み
   const savedAt = loadAll();
   renderTeams();
   document.getElementById('s-date').value = game.date || new Date().toISOString().slice(0,10);
-
-  // ホーム画面にバックアップボタンを追加
-  const homeRecent = document.getElementById('home-recent');
-  if(homeRecent){
-    const backupDiv = document.createElement('div');
-    backupDiv.style.cssText='display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;';
-    backupDiv.innerHTML=`
-      <button onclick="exportBackup()" class="btn" style="font-size:12px;flex:1;">
-        💾 データをバックアップ
-      </button>
-      <label class="btn" style="font-size:12px;flex:1;cursor:pointer;text-align:center;">
-        📂 バックアップを読み込む
-        <input type="file" accept=".json" style="display:none;" onchange="importBackup(this)">
-      </label>`;
-    homeRecent.appendChild(backupDiv);
-  }
 
   if(savedAt){
     const d = new Date(savedAt);
