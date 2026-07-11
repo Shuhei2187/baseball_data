@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PixelScore</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0A2744">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PixelScore">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -273,6 +278,16 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
       <div style="color:var(--muted);font-size:18px;">›</div>
     </div>
 
+    <!-- 試合履歴 -->
+    <div onclick="showScreen('history');renderHistory();" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:16px;" onmouseenter="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseleave="this.style.boxShadow=''">
+      <div style="width:52px;height:52px;background:#E03F3F;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📋</div>
+      <div style="flex:1;">
+        <div style="font-size:16px;font-weight:700;color:var(--navy);margin-bottom:3px;">試合履歴</div>
+        <div style="font-size:12px;color:var(--muted);" id="home-history-count">過去の試合を振り返る</div>
+      </div>
+      <div style="color:var(--muted);font-size:18px;">›</div>
+    </div>
+
     <!-- 直近の試合 -->
     <!-- バックアップ -->
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -389,6 +404,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     <div style="margin-left:auto;display:flex;gap:6px;">
       <button class="hdr-btn" onclick="gotoTab('setup')">設定</button>
       <button class="hdr-btn" onclick="toggleVideoPanel()" id="btn-video">🎬</button>
+      <button class="hdr-btn" style="background:var(--red);color:#fff;border-color:var(--red);" onclick="endGame()">試合終了</button>
       <button class="export-btn" onclick="exportCSV()">CSV出力</button>
     </div>
   </div>
@@ -737,6 +753,7 @@ let teams = [
 let game = {title:'',date:'',place:'',teamA:null,teamB:null,orderA:[],orderB:[],dhA:false,dhB:false,dhPlayerA:null,dhPlayerB:null};
 let pitchLog = [];
 let scores = {a:Array(9).fill(null), b:Array(9).fill(null)};
+let gameHistory = [];
 let hits={a:0,b:0}, errs={a:0,b:0};
 
 const PITCH_COLORS = {
@@ -832,7 +849,7 @@ function importExcel(input){
 }
 
 // ===== NAVIGATION =====
-const ALL_SCREENS = ['home','team','setup','game','analysis-home','analysis','analysis-player','analysis-team'];
+const ALL_SCREENS = ['home','team','setup','game','analysis-home','analysis','analysis-player','analysis-team','history','summary'];
 
 function showScreen(name){
   ALL_SCREENS.forEach(s=>{ const el=document.getElementById('screen-'+s); if(el) el.classList.remove('active'); });
@@ -847,7 +864,7 @@ function showScreen(name){
     hdr.style.display='none';
   } else {
     hdr.style.display='flex';
-    const titles={'team':'チーム管理','setup':'試合設定','game':'試合入力','analysis-home':'分析','analysis':'試合別分析','analysis-player':'選手別分析','analysis-team':'チーム別分析'};
+    const titles={'team':'チーム管理','setup':'試合設定','game':'試合入力','analysis-home':'分析','analysis':'試合別分析','analysis-player':'選手別分析','analysis-team':'チーム別分析','history':'試合履歴','summary':'試合サマリー'};
     titleEl.textContent = '⚾ ' + (titles[name]||'PixelScore');
     backBtn.style.display = 'inline-block';
   }
@@ -889,7 +906,8 @@ function gotoTab(tab){
 
 function renderHomeStats(){
   // チーム数バッジ
-  const tc = document.getElementById('home-team-count');
+  const hc = document.getElementById('home-history-count');
+  if(hc) hc.textContent = gameHistory.length ? `${gameHistory.length}試合の記録があります` : '過去の試合を振り返る';
   if(tc) tc.textContent = teams.length ? `${teams.length}チーム・${teams.reduce((a,t)=>a+t.players.length,0)}名登録済み` : '選手情報の登録・編集・Excelインポート';
   // 直近試合
   const recent = document.getElementById('home-recent');
@@ -3615,6 +3633,7 @@ function saveAll(){
         pitcherA:game.pitcherA, pitcherB:game.pitcherB,
       },
       scores, hits, errs,
+      gameHistory,
       savedAt: new Date().toISOString(),
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -3634,6 +3653,7 @@ function loadAll(){
     if(data.scores) scores = data.scores;
     if(data.hits)   hits   = data.hits;
     if(data.errs)   errs   = data.errs;
+    if(data.gameHistory) gameHistory = data.gameHistory;
     return data.savedAt;
   } catch(e){ console.warn('読み込みエラー:', e); return false; }
 }
@@ -3687,7 +3707,218 @@ function importBackup(input){
   reader.readAsText(file);
 }
 
-// ===== VIDEO =====
+// ===== GAME HISTORY =====
+function endGame(){
+  if(!pitchLog.length){
+    alert('投球データがありません。');
+    return;
+  }
+  if(!confirm('試合を終了して保存しますか？')) return;
+
+  // スコア集計
+  const totalA = scores.a.reduce((s,v)=>s+(v||0),0);
+  const totalB = scores.b.reduce((s,v)=>s+(v||0),0);
+
+  // このゲームのスナップショット
+  const snapshot = {
+    id: 'g' + Date.now(),
+    savedAt: new Date().toISOString(),
+    game: JSON.parse(JSON.stringify(game)),
+    pitchLog: JSON.parse(JSON.stringify(pitchLog)),
+    scores: JSON.parse(JSON.stringify(scores)),
+    hits: {...hits}, errs: {...errs},
+    totalA, totalB,
+  };
+  gameHistory.push(snapshot);
+  saveAll();
+
+  // 現在の入力をリセット
+  pitchLog = [];
+  scores = {a:Array(9).fill(null), b:Array(9).fill(null)};
+  hits = {a:0, b:0}; errs = {a:0, b:0};
+  game = {title:'',date:'',place:'',teamA:null,teamB:null,orderA:[],orderB:[],dhA:false,dhB:false,dhPlayerA:null,dhPlayerB:null};
+
+  // サマリー画面へ
+  showSummary(snapshot);
+}
+
+function renderHistory(){
+  const ALL = [...gameHistory].reverse();
+  const empty = document.getElementById('history-empty');
+  const list  = document.getElementById('history-list');
+  if(!ALL.length){
+    empty.style.display = 'block';
+    list.innerHTML = '';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = ALL.map(g=>{
+    const d = new Date(g.savedAt);
+    const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const nameA = g.game.teamA?.name || 'チームA';
+    const nameB = g.game.teamB?.name || 'チームB';
+    const winner = g.totalA > g.totalB ? nameA : g.totalB > g.totalA ? nameB : '引き分け';
+    const winnerLabel = g.totalA===g.totalB ? '引き分け' : `${winner} 勝利`;
+    return `
+    <div onclick="showSummary(gameHistory.find(h=>h.id==='${g.id}'))"
+      style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;
+             margin-bottom:10px;cursor:pointer;"
+      onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='var(--white)'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--muted);">${dateStr}</div>
+        <div style="font-size:11px;font-weight:700;color:var(--blue);">${winnerLabel}</div>
+        <button onclick="event.stopPropagation();deleteGame('${g.id}')"
+          style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;">削除</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="flex:1;text-align:right;">
+          <div style="font-size:14px;font-weight:700;color:var(--navy);">${nameA}</div>
+          <div style="font-size:11px;color:var(--muted);">${g.pitchLog.filter(p=>p.tb==='表').length}球</div>
+        </div>
+        <div style="text-align:center;min-width:80px;">
+          <div style="font-size:28px;font-weight:800;color:var(--navy);">${g.totalA} - ${g.totalB}</div>
+          <div style="font-size:10px;color:var(--muted);">${g.game.date||''} ${g.game.place||''}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--navy);">${nameB}</div>
+          <div style="font-size:11px;color:var(--muted);">${g.pitchLog.filter(p=>p.tb==='裏').length}球</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteGame(id){
+  if(!confirm('この試合を削除しますか？')) return;
+  gameHistory = gameHistory.filter(g=>g.id!==id);
+  saveAll();
+  renderHistory();
+}
+
+function showSummary(g){
+  if(!g) return;
+  showScreen('summary');
+  const ALL_SCREENS_EXT = ['home','team','setup','game','analysis-home','analysis','analysis-player','analysis-team','history','summary'];
+  ALL_SCREENS_EXT.forEach(s=>{ const el=document.getElementById('screen-'+s); if(el) el.classList.remove('active'); });
+  document.getElementById('screen-summary').classList.add('active');
+  document.getElementById('global-header').style.display='flex';
+  document.getElementById('header-title').textContent='⚾ 試合サマリー';
+
+  const nameA = g.game.teamA?.name || 'チームA';
+  const nameB = g.game.teamB?.name || 'チームB';
+  const logs  = g.pitchLog;
+
+  // タイトル
+  document.getElementById('summary-title').textContent =
+    `${nameA} vs ${nameB}${g.game.date?' ('+g.game.date+')':''}`;
+
+  // スコアボード
+  const inns = Array.from({length:9},(_,i)=>i+1);
+  document.getElementById('summary-score').innerHTML = `
+    <div class="card-title">スコアボード</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:500px;">
+        <thead><tr style="background:var(--navy);color:#fff;">
+          <th style="padding:5px 8px;text-align:left;">チーム</th>
+          ${inns.map(i=>`<th style="padding:5px 6px;text-align:center;">${i}</th>`).join('')}
+          <th style="padding:5px 8px;text-align:center;background:#1a3a5c;">計</th>
+          <th style="padding:5px 8px;text-align:center;background:#1a3a5c;">H</th>
+          <th style="padding:5px 8px;text-align:center;background:#1a3a5c;">E</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:6px 8px;font-weight:700;">${nameA}</td>
+            ${inns.map(i=>`<td style="padding:6px;text-align:center;">${g.scores.a[i-1]??'—'}</td>`).join('')}
+            <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--blue);">${g.totalA}</td>
+            <td style="padding:6px 8px;text-align:center;">${g.hits?.a??0}</td>
+            <td style="padding:6px 8px;text-align:center;">${g.errs?.a??0}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 8px;font-weight:700;">${nameB}</td>
+            ${inns.map(i=>`<td style="padding:6px;text-align:center;">${g.scores.b[i-1]??'—'}</td>`).join('')}
+            <td style="padding:6px 8px;text-align:center;font-weight:800;color:var(--red);">${g.totalB}</td>
+            <td style="padding:6px 8px;text-align:center;">${g.hits?.b??0}</td>
+            <td style="padding:6px 8px;text-align:center;">${g.errs?.b??0}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+
+  // チーム別スタッツ
+  function teamStats(tbVal, name){
+    const tLogs = logs.filter(p=>p.tb===tbVal);
+    const ab = tLogs.filter(p=>['インプレー','見逃し三振','空振り三振'].includes(p.result)||['凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー'].includes(p.hitResult)).length;
+    const hits2 = tLogs.filter(p=>['単打','二塁打','三塁打','本塁打','内野安打'].includes(p.hitResult)).length;
+    const hr = tLogs.filter(p=>p.hitResult==='本塁打').length;
+    const kk = tLogs.filter(p=>['見逃し三振','空振り三振'].includes(p.result)).length;
+    const bb = tLogs.filter(p=>['四球','死球'].includes(p.result)).length;
+    const avg = ab ? '.'+String(Math.round(hits2/ab*1000)).padStart(3,'0') : '—';
+    const total = tbVal==='表'?g.totalA:g.totalB;
+    return `<div class="card-title">${name} 打撃成績</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        ${[['得点',total+'点'],['打率',avg],['安打',hits2+'本'],['本塁打',hr+'本'],['三振',kk+'個'],['四死球',bb+'個']].map(([l,v])=>`
+          <div class="a-stat-card"><div class="a-stat-label">${l}</div><div class="a-stat-val" style="font-size:18px;">${v}</div></div>`).join('')}
+      </div>`;
+  }
+  document.getElementById('summary-stats-a').innerHTML = teamStats('表', nameA);
+  document.getElementById('summary-stats-b').innerHTML = teamStats('裏', nameB);
+
+  // 投手成績
+  const pitchers = [...new Set(logs.map(p=>p.pitcher).filter(Boolean))];
+  document.getElementById('summary-pitcher').innerHTML = `
+    <div class="card-title">投手成績</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="background:var(--navy);color:#fff;">
+        <th style="padding:5px 8px;text-align:left;">投手</th>
+        <th style="padding:5px 6px;text-align:center;">投球数</th>
+        <th style="padding:5px 6px;text-align:center;">S率</th>
+        <th style="padding:5px 6px;text-align:center;">K</th>
+        <th style="padding:5px 6px;text-align:center;">BB</th>
+        <th style="padding:5px 6px;text-align:center;">失点</th>
+      </tr></thead>
+      <tbody>${pitchers.map(p=>{
+        const pl = logs.filter(l=>l.pitcher===p);
+        const strikes = pl.filter(l=>['見逃しスト','空振り','ファール','ファールチップ','見逃し三振','空振り三振'].includes(l.result)).length;
+        const ks = pl.filter(l=>['見逆し三振','空振り三振'].includes(l.result)).length;
+        const bbs = pl.filter(l=>['四球','死球'].includes(l.result)).length;
+        const runs2 = pl.reduce((a,l)=>a+(l.runs||0),0);
+        const srate = pl.length ? Math.round(strikes/pl.length*100)+'%' : '—';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 8px;font-weight:600;">${p}</td>
+          <td style="padding:6px;text-align:center;">${pl.length}</td>
+          <td style="padding:6px;text-align:center;">${srate}</td>
+          <td style="padding:6px;text-align:center;">${ks}</td>
+          <td style="padding:6px;text-align:center;">${bbs}</td>
+          <td style="padding:6px;text-align:center;">${runs2}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+
+  // 投球ログ
+  const cls={s:'tag-s',b:'tag-b',h:'tag-h',o:'tag-o'};
+  document.getElementById('summary-log').innerHTML = `
+    <thead><tr><th>#</th><th>回</th><th>投手</th><th>打者</th><th>球種</th><th>球速</th><th>結果</th><th>打球</th></tr></thead>
+    <tbody>${[...logs].reverse().map(e=>`<tr>
+      <td>${e.num}</td><td>${e.inning}回${e.tb}</td><td>${e.pitcher}</td><td>${e.batter}</td>
+      <td>${e.pitchType||'—'}</td><td>${e.speed?e.speed+'km':'—'}</td>
+      <td><span class="tag ${cls[e.resultType]||'tag-o'}">${e.result}</span></td>
+      <td>${e.hitResult||'—'}</td>
+    </tr>`).join('')}</tbody>`;
+
+  // 分析ボタン用にgameHistoryにcurrent snapshotをセット
+  window._currentSummaryId = g.id;
+}
+
+function replayGame(){
+  const g = gameHistory.find(h=>h.id===window._currentSummaryId);
+  if(!g) return;
+  // このゲームのデータをcurrentにロード
+  pitchLog = JSON.parse(JSON.stringify(g.pitchLog));
+  Object.assign(game, g.game);
+  scores = JSON.parse(JSON.stringify(g.scores));
+  hits = {...g.hits}; errs = {...g.errs};
+  switchAnalysisMode('game');
+}
 let _videoMode = null; // 'local' | 'youtube'
 let _ytVideoId = null;
 let _ytReady = false;
@@ -3805,6 +4036,10 @@ function jumpToVideoTime(sec){
 
 // ===== BOOT =====
 window.addEventListener('DOMContentLoaded', function(){
+  // Service Worker 登録（オフライン対応）
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
   // 保存データを読み込み
   const savedAt = loadAll();
   renderTeams();
@@ -3824,7 +4059,49 @@ window.addEventListener('DOMContentLoaded', function(){
   renderHomeStats();
 });
 </script>
-<!-- ===== ANALYSIS SCREEN ===== -->
+<!-- ===== GAME HISTORY SCREEN ===== -->
+<div id="screen-history" class="screen">
+  <div class="page" style="max-width:700px;">
+    <div class="page-title">📋 試合履歴</div>
+    <div id="history-list"></div>
+    <div id="history-empty" style="text-align:center;padding:40px;color:var(--muted);font-size:13px;display:none;">
+      まだ試合が記録されていません。<br>試合終了ボタンを押すと履歴に保存されます。
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME SUMMARY SCREEN ===== -->
+<div id="screen-summary" class="screen">
+  <div class="page" style="max-width:800px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <div class="page-title" style="margin:0;" id="summary-title">試合サマリー</div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-primary" onclick="replayGame()" style="font-size:12px;">この試合を分析</button>
+        <button class="btn" onclick="showScreen('history');renderHistory();" style="font-size:12px;">← 一覧に戻る</button>
+      </div>
+    </div>
+
+    <!-- スコアボード -->
+    <div class="card" style="margin-bottom:12px;" id="summary-score"></div>
+
+    <!-- 基本スタッツ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="card" id="summary-stats-a"></div>
+      <div class="card" id="summary-stats-b"></div>
+    </div>
+
+    <!-- 投手成績 -->
+    <div class="card" style="margin-bottom:12px;" id="summary-pitcher"></div>
+
+    <!-- 投球ログ -->
+    <div class="card">
+      <div class="card-title">投球ログ</div>
+      <div style="overflow-x:auto;max-height:300px;overflow-y:auto;">
+        <table class="log-tbl" id="summary-log"></table>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="screen-analysis" class="screen">
   <div class="page" style="max-width:1100px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
