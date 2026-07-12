@@ -877,9 +877,29 @@ function importExcel(input){
           const ws = wb.Sheets[sheetName];
           if(!ws) return;
 
-          // C4セルにチーム名があれば優先、なければシート名を使用
-          const teamNameFromCell = ws['C4']?.v ? String(ws['C4'].v).trim() : '';
-          const teamName = teamNameFromCell || sheetName;
+          // チーム名を探す
+          // 新テンプレート: B4=「チーム名」ラベル → C4がマージされた入力欄
+          // 旧テンプレート: C4=「背番号」などヘッダー → シート名を使う
+          const SKIP_WORDS = ['選手名','背番号','ポジション','打席','投げる腕','利き腕','番号','チーム名','PixelScore','※','👆','⚾'];
+          let teamName = sheetName;
+
+          // 「チーム名」ラベルを含む行を探してその右のセルを取得
+          const allCells = ws['!ref'] ? XLSX.utils.sheet_to_json(ws, {header:1, range:0}) : [];
+          for(let ri=0; ri<Math.min(10, allCells.length); ri++){
+            const row = allCells[ri];
+            if(!row) continue;
+            for(let ci=0; ci<row.length; ci++){
+              if(String(row[ci]||'').trim()==='チーム名'){
+                // 右のセルを確認
+                const v = String(row[ci+1]||'').trim();
+                if(v && !SKIP_WORDS.some(w=>v.includes(w))){
+                  teamName = v;
+                }
+              }
+            }
+          }
+          // それでも見つからなければシート名
+
 
           const players = readPlayers(ws);
           if(upsertTeam(teamName, players)) results.push(`${teamName}：${players.length}名`);
