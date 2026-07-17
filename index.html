@@ -570,7 +570,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
     <!-- P2: Pitch type -->
     <div class="panel">
       <div class="ptitle">⚾ 球種</div>
-      <div class="plist">
+      <div id="pitcher-pitches-hint" style="display:none;font-size:9px;color:var(--blue);margin-bottom:4px;padding:3px 6px;background:var(--blue-light);border-radius:4px;"></div>
+      <div class="plist" id="ptype-list">
         <div class="pg-label">直球系</div>
         <button class="ptype-btn" onclick="selectPitch(this,'ストレート')">ストレート</button>
         <button class="ptype-btn" onclick="selectPitch(this,'ツーシーム')">ツーシーム</button>
@@ -1290,11 +1291,12 @@ function renderTeams() {
       <table class="player-table">
         <thead><tr>
           <th style="width:36px;text-align:center;">番号</th>
-          <th style="width:160px;text-align:left;">選手名</th>
-          <th style="width:58px;">背番号</th>
-          <th style="width:88px;">ポジション</th>
-          <th style="width:76px;">打席</th>
-          <th style="width:76px;">投げる腕</th>
+          <th style="width:140px;text-align:left;">選手名</th>
+          <th style="width:48px;">背番号</th>
+          <th style="width:80px;">ポジション</th>
+          <th style="width:60px;">打席</th>
+          <th style="width:60px;">投げる腕</th>
+          <th style="text-align:left;">持ち球（投手のみ）</th>
           <th style="width:28px;"></th>
         </tr></thead>
         <tbody id="player-body-${ti}">
@@ -1329,7 +1331,67 @@ function playerRow(ti,pi,p){
       <option value="—"${(!p.throw||p.throw==='—')?' selected':''}>—</option>
     </select></td>
     <td><button onclick="removePlayer(${ti},${pi})" style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px;">×</button></td>
-  </tr>`;
+  </tr>
+  ${p.pos==='投手'?`<tr><td colspan="8" style="padding:2px 8px 6px 36px;">
+    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+      ${['ストレート','ツーシーム','スライダー','カットボール','カーブ','フォーク','チェンジアップ','シンカー','特殊球'].map(pt=>`
+        <label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;
+               padding:2px 7px;border-radius:12px;border:1px solid var(--border);
+               background:${(p.pitches||[]).includes(pt)?'var(--blue)':'#fff'};
+               color:${(p.pitches||[]).includes(pt)?'#fff':'var(--navy)'};">
+          <input type="checkbox" style="display:none;" ${(p.pitches||[]).includes(pt)?'checked':''}
+            onchange="togglePitch(${ti},${pi},'${pt}',this.checked)">
+          ${pt}
+        </label>`).join('')}
+    </div>
+  </td></tr>`:''}
+`;
+}
+
+function togglePitch(ti, pi, pitchType, checked){
+  if(!teams[ti].players[pi].pitches) teams[ti].players[pi].pitches=[];
+  if(checked){
+    if(!teams[ti].players[pi].pitches.includes(pitchType))
+      teams[ti].players[pi].pitches.push(pitchType);
+  } else {
+    teams[ti].players[pi].pitches = teams[ti].players[pi].pitches.filter(p=>p!==pitchType);
+  }
+  autoSave();
+  // 打順上の投手の持ち球も同期
+  ['a','b'].forEach(side=>{
+    const order = side==='a'?game.orderA:game.orderB;
+    const pl = order.find(p=>p.name===teams[ti].players[pi].name);
+    if(pl) pl.pitches = [...teams[ti].players[pi].pitches];
+  });
+}
+
+function updatePitcherHint(){
+  const hint = document.getElementById('pitcher-pitches-hint');
+  if(!hint) return;
+  const defPl = cur.tb==='表'?game.orderB:game.orderA;
+  // 現在の投手を取得
+  const pitcherName = cur.tb==='表'
+    ? (game.pitcherB || defPl.find(p=>p.pos==='投手')?.name)
+    : (game.pitcherA || defPl.find(p=>p.pos==='投手')?.name);
+  if(!pitcherName){ hint.style.display='none'; return; }
+  // 投手の持ち球を検索
+  let pitches = [];
+  for(const team of teams){
+    const pl = team.players.find(p=>p.name===pitcherName);
+    if(pl && pl.pitches && pl.pitches.length){ pitches=pl.pitches; break; }
+  }
+  // 打順上の投手データからも取得
+  const pitcherInOrder = defPl.find(p=>p.name===pitcherName);
+  if(pitcherInOrder?.pitches?.length) pitches=pitcherInOrder.pitches;
+  if(!pitches.length){ hint.style.display='none'; return; }
+  hint.style.display='block';
+  hint.innerHTML = `🎯 ${pitcherName}の持ち球：${pitches.join(' / ')}`;
+  // 球種ボタンをハイライト
+  document.querySelectorAll('.ptype-btn').forEach(btn=>{
+    const isPitcherPitch = pitches.includes(btn.textContent.trim());
+    btn.style.outline = isPitcherPitch ? '2px solid var(--blue)' : '';
+    btn.style.outlineOffset = isPitcherPitch ? '2px' : '';
+  });
 }
 
 function setPlayerName(ti, pi, name){
@@ -1695,9 +1757,17 @@ function renderOrderList(side) {
   if(!el) return;
   const ALL_POS = ['投手','捕手','一塁手','二塁手','三塁手','遊撃手','左翼手','中堅手','右翼手','内野手','外野手','DH','—'];
   el.innerHTML = order.map((p,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;
-                background:${p.pos==='投手'?'var(--gray-light)':'var(--blue-light)'};
-                border-radius:6px;margin-bottom:3px;">
+    <div draggable="true"
+      data-idx="${i}" data-side="${side}"
+      ondragstart="orderDragStart(event)"
+      ondragover="orderDragOver(event)"
+      ondrop="orderDrop(event,this,'${side}')"
+      ondragend="orderDragEnd(event)"
+      style="display:flex;align-items:center;gap:6px;padding:6px 8px;
+             background:${p.pos==='投手'?'var(--gray-light)':'var(--blue-light)'};
+             border-radius:6px;margin-bottom:3px;cursor:grab;user-select:none;
+             transition:opacity .15s;">
+      <span style="color:var(--muted);font-size:14px;margin-right:2px;">☰</span>
       <span style="font-weight:700;color:var(--navy);font-size:13px;min-width:22px;text-align:center;">${i+1}</span>
       <span style="flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</span>
       <select onclick="event.stopPropagation()" onchange="changeOrderPos('${side}',${i},this.value)"
@@ -1709,6 +1779,33 @@ function renderOrderList(side) {
         style="background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;
                line-height:1;padding:0 2px;flex-shrink:0;">×</button>
     </div>`).join('');
+}
+
+let _dragSrcIdx = null;
+function orderDragStart(e){
+  _dragSrcIdx = parseInt(e.currentTarget.dataset.idx);
+  e.currentTarget.style.opacity='0.4';
+  e.dataTransfer.effectAllowed='move';
+}
+function orderDragOver(e){
+  e.preventDefault(); e.dataTransfer.dropEffect='move';
+  e.currentTarget.style.borderTop='2px solid var(--blue)';
+}
+function orderDragEnd(e){
+  e.currentTarget.style.opacity='1';
+  document.querySelectorAll('[data-idx]').forEach(el=>el.style.borderTop='');
+}
+function orderDrop(e, el, side){
+  e.preventDefault();
+  el.style.borderTop='';
+  const toIdx = parseInt(el.dataset.idx);
+  if(_dragSrcIdx===null || _dragSrcIdx===toIdx) return;
+  const order = side==='a'?game.orderA:game.orderB;
+  const [moved] = order.splice(_dragSrcIdx,1);
+  order.splice(toIdx,0,moved);
+  _dragSrcIdx=null;
+  renderOrderList(side);
+  autoSave();
 }
 function removeOrderPlayer(side,i){
   if(side==='a') game.orderA.splice(i,1); else game.orderB.splice(i,1);
@@ -1863,6 +1960,7 @@ function updateSituation(){
   // 表裏が変わったら打順を1番に戻す
   cur.order = 1;
   buildOrderSelect();
+  updatePitcherHint();
   updateHeader();
 }
 
@@ -1958,6 +2056,7 @@ function updateHeader(){
     document.getElementById('bt-right').classList.toggle('active', side==='right');
     document.getElementById('bt-left').classList.toggle('active', side==='left');
   }
+  updatePitcherHint();
 }
 
 function setPitcherHand(hand){
@@ -2196,10 +2295,10 @@ function calcPreview(){
   if(['凡打','ゴロアウト','フライアウト','ライナーアウト','犠打','犠飛'].includes(hitResult)) po=Math.min(po+1,3);
   if(hitResult==='ゲッツー') po=Math.min(po+2,3);
 
-  // ランナー・打者情報
-  const offPl2 = cur.tb==='表'?game.orderA:game.orderB;
+  const offPl2  = cur.tb==='表'?game.orderA:game.orderB;
   const batter  = offPl2[cur.order-1]||offPl2[0];
   const rIds    = cur.runnerIds||[null,null,null];
+  const batterId = batter?.id||null;
   const getName = id => {
     if(!id) return '?';
     const pl=offPl2.find(p=>p.id===id)||offPl2.find(p=>p.name===id);
@@ -2207,84 +2306,48 @@ function calcPreview(){
   };
   const bName = batter ? (batter.num||batter.name.slice(0,3)) : 'B';
 
-  // 現在の走者
   const runners = [...cur.runners];
-  // 移動後の走者（名前 or false）
   let pr = [
-    runners[0] ? getName(rIds[0]) : false,
-    runners[1] ? getName(rIds[1]) : false,
-    runners[2] ? getName(rIds[2]) : false
+    runners[0]?getName(rIds[0]):false,
+    runners[1]?getName(rIds[1]):false,
+    runners[2]?getName(rIds[2]):false
   ];
-  // 矢印リスト [{from, to, name}]
   let arrows = [];
 
-  const isReach = ['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(hitResult)
-               || ['四球','死球'].includes(result);
+  const advance = hitResult==='本塁打' ? 4
+                : hitResult==='三塁打'  ? 3
+                : hitResult==='二塁打'  ? 2
+                : ['単打','内野安打','エラー','野選'].includes(hitResult) ? 1
+                : ['四球','死球'].includes(result) ? 1
+                : null;
 
-  if(isReach){
-    const batterDest = {'単打':1,'内野安打':1,'エラー':1,'野選':1,
-                        '二塁打':2,'三塁打':3,'本塁打':'本塁'}[hitResult]
-                     || (['四球','死球'].includes(result) ? 1 : null);
-
-    if(hitResult==='本塁打'){
+  if(advance!==null){
+    if(advance >= 4){
       [0,1,2].forEach(i=>{ if(runners[i]) arrows.push({from:i+1,to:'本塁',name:getName(rIds[i])}); });
       arrows.push({from:'打席',to:'本塁',name:bName});
       pr=[false,false,false];
+    } else {
+      const batterDest = advance;
+      const newPr = [false,false,false];
 
-    } else if(batterDest){
-      const newPr=[false,false,false];
+      // バッターを先に配置
+      newPr[batterDest-1] = bName;
+      arrows.push({from:'打席', to:batterDest, name:bName});
 
-      // フォース判定（autoAdvanceと同じロジック）
-      const forced=[false,false,false];
-      if(batterDest>=1) forced[0]=true;
-      if(forced[0]&&runners[0]) forced[1]=true;
-      if(forced[1]&&runners[1]) forced[2]=true;
-      if(batterDest>=2&&runners[0]) forced[1]=true;
-      if(batterDest>=3&&runners[1]) forced[2]=true;
-
-      // 3塁ランナー
-      if(runners[2]){
-        if(forced[2]){
-          arrows.push({from:3,to:'本塁',name:getName(rIds[2])});
+      // 既存ランナーをホーム側から処理
+      for(let base=3; base>=1; base--){
+        if(!runners[base-1]) continue;
+        const rName = getName(rIds[base-1]);
+        let dest = Math.min(base + advance, 3);
+        while(dest <= 3 && newPr[dest-1]) dest++;
+        if(dest > 3){
+          arrows.push({from:base, to:'本塁', name:rName});
         } else {
-          newPr[2]=getName(rIds[2]); // 留まる
+          arrows.push({from:base, to:dest, name:rName});
+          newPr[dest-1] = rName;
         }
       }
-      // 2塁ランナー
-      if(runners[1]){
-        if(forced[1]){
-          const dest3=!newPr[2]?3:'本塁';
-          arrows.push({from:2,to:dest3,name:getName(rIds[1])});
-          if(dest3===3) newPr[2]=getName(rIds[1]);
-        } else {
-          newPr[1]=getName(rIds[1]);
-        }
-      }
-      // 1塁ランナー
-      if(runners[0]){
-        if(forced[0]){
-          if(batterDest===1){
-            if(!newPr[1]){ arrows.push({from:1,to:2,name:getName(rIds[0])}); newPr[1]=getName(rIds[0]); }
-            else if(!newPr[2]){ arrows.push({from:1,to:3,name:getName(rIds[0])}); newPr[2]=getName(rIds[0]); }
-            else { arrows.push({from:1,to:'本塁',name:getName(rIds[0])}); }
-          } else {
-            const d=!newPr[1]?2:(!newPr[2]?3:'本塁');
-            arrows.push({from:1,to:d,name:getName(rIds[0])});
-            if(d===2) newPr[1]=getName(rIds[0]);
-            else if(d===3) newPr[2]=getName(rIds[0]);
-          }
-        } else {
-          newPr[0]=getName(rIds[0]);
-        }
-      }
-      // バッターランナー
-      if(batterDest!=='本塁'){
-        arrows.push({from:'打席',to:batterDest,name:bName});
-        newPr[batterDest-1]=bName;
-      } else {
-        arrows.push({from:'打席',to:'本塁',name:bName});
-      }
-      pr=newPr;
+      pr = newPr;
     }
   }
 
@@ -2600,14 +2663,24 @@ function drawMiniDiamond(arrows, selectedBase, previewRunners){
     ctx.moveTo(pts[0].x, pts[0].y);
     for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
     ctx.stroke();
-    // 矢印（最後の2点の方向）
+    // 矢印（塁の丸の外側に先端を止める）
     const last = pts[pts.length-1];
     const prev = pts[pts.length-2];
     const angle = Math.atan2(last.y-prev.y, last.x-prev.x);
+    const R = 13; // 塁の丸の半径+余白
+    // 先端を丸の手前に止める
+    const tipX = last.x - Math.cos(angle)*R;
+    const tipY = last.y - Math.sin(angle)*R;
     ctx.setLineDash([]);
+    // 線を先端まで延長
+    ctx.beginPath();
+    ctx.moveTo(pts[pts.length-2].x, pts[pts.length-2].y);
+    ctx.lineTo(tipX, tipY);
+    ctx.stroke();
+    // 矢印ヘッド（大きめ）
     ctx.fillStyle='#FFD700';
-    ctx.save(); ctx.translate(last.x, last.y); ctx.rotate(angle);
-    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-8,-3.5); ctx.lineTo(-8,3.5);
+    ctx.save(); ctx.translate(tipX, tipY); ctx.rotate(angle);
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-12,-5); ctx.lineTo(-12,5);
     ctx.closePath(); ctx.fill(); ctx.restore();
     // 名前ラベル（中間点）
     if(name){
@@ -3843,7 +3916,7 @@ function autoAdvance(entry){
   const isReach     = ['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(hitResult)
                     ||['四球','死球'].includes(result);
 
-  let runnerMoves = [];
+  const runnerMoves = [];
 
   if(isReach){
     const runners    = [...cur.runners];
@@ -3854,153 +3927,98 @@ function autoAdvance(entry){
       return pl ? (pl.num||pl.name.slice(0,3)) : String(id).slice(0,3);
     };
 
-    // ===== バッターが進む先を決定 =====
-    const batterDest = {'単打':1,'内野安打':1,'エラー':1,'野選':1,
-                        '二塁打':2,'三塁打':3,'本塁打':'本塁'}[hitResult]
-                     || (['四球','死球'].includes(result) ? 1 : null);
+    const advance = hitResult==='本塁打' ? 4
+                  : hitResult==='三塁打'  ? 3
+                  : hitResult==='二塁打'  ? 2
+                  : ['単打','内野安打','エラー','野選'].includes(hitResult) ? 1
+                  : ['四球','死球'].includes(result) ? 1
+                  : null;
 
-    // ===== ランナー進塁：フォース判定 =====
-    // batDestまでのフォース連鎖を計算
-    // "詰まっている"＝バッターランナーの進路上に連続してランナーがいる
-    const newRunners   = [...runners];
-    const newRunnerIds = [...runnerIds];
-
-    if(hitResult==='本塁打'){
-      // 全員自動生還
-      [0,1,2].forEach(i=>{
-        if(runners[i]) runnerMoves.push({from:i+1, to:'本塁', name:getName(runnerIds[i])});
-      });
-      newRunners.fill(false); newRunnerIds.fill(null);
-
-    } else if(batterDest){
-      // バッターランナーが何塁まで進むか決定
-      // フォース判定：1塁から連続してランナーが埋まっているか
-      // batDest塁まで、各塁のランナーを前に押し出す（詰まっている分だけ）
-
-      // まず "押し出される" ランナーを後ろ（高い塁）から処理
-      // バッターが進む先が batDest なので、
-      // 1〜batDest-1 の各塁にいるランナーは1つ以上押し出される
-
-      // シンプルなアルゴリズム：
-      // batDest より前の塁を後ろから前に埋めていく
-      // ランナーが "連続して詰まっている" 部分だけ押し出す
-
-      // forced[b]=true なら b塁のランナーは強制進塁
-      const forced = [false,false,false]; // index 0=1塁,1=2塁,2=3塁
-      // バッターが1塁に来る → 1塁はフォース
-      if(batterDest>=1) forced[0]=true;
-      // 1塁ランナーがいてフォースなら2塁もフォース
-      if(forced[0] && runners[0]) forced[1]=true;
-      // 2塁ランナーがいてフォースなら3塁もフォース
-      if(forced[1] && runners[1]) forced[2]=true;
-
-      // バッターが2塁以上に進む場合、追加でフォース（例：二塁打でランナー1塁→2塁がフォース）
-      if(batterDest>=2 && runners[0]) forced[1]=true;
-      if(batterDest>=3 && runners[1]) forced[2]=true;
-
-      // 3塁→本塁（フォースまたはbatterDest>=3の場合）
-      if(runners[2]){
-        if(forced[2]){
-          runnerMoves.push({from:3, to:'本塁', name:getName(runnerIds[2])});
-          newRunners[2]=false; newRunnerIds[2]=null;
+    if(advance!==null){
+      if(advance >= 4){
+        // 本塁打：全員生還
+        [0,1,2].forEach(i=>{
+          if(runners[i]) runnerMoves.push({from:i+1, to:'本塁', name:getName(runnerIds[i])});
+        });
+        runnerMoves.push({from:'打席', to:'本塁', name:getName(batterId)});
+        cur.runners=[false,false,false]; cur.runnerIds=[null,null,null];
+        const off2=cur.tb==='表'?'a':'b';
+        const totalRuns=runnerMoves.length;
+        const inn2=Math.min(cur.inning,9)-1;
+        if(inn2>=0){scores[off2][inn2]=(scores[off2][inn2]||0)+totalRuns; updateScoreboard();}
+        cur.runs=totalRuns;
+        document.querySelectorAll('.or-btn.sel-r').forEach(b=>b.classList.remove('sel-r'));
+        document.querySelectorAll('.or-btn').forEach(btn=>{
+          const labels=['得点なし','1点','2点','3点','4点'];
+          if(btn.textContent.trim()===labels[Math.min(totalRuns,4)]) btn.classList.add('sel-r');
+        });
+        runnerMoves.forEach(m=>{
+          if(!playerStats[off2][m.name]) playerStats[off2][m.name]={rbi:0,runs:0,hits:0,ab:0};
+          playerStats[off2][m.name].runs=(playerStats[off2][m.name].runs||0)+1;
+        });
+        if(batter?.name){
+          if(!playerStats[off2][batter.name]) playerStats[off2][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+          playerStats[off2][batter.name].rbi=(playerStats[off2][batter.name].rbi||0)+totalRuns;
         }
-        // フォースでない場合は3塁に留まる（手動で動かせる）
-      }
-      // 2塁→3塁（フォースの場合）
-      if(runners[1]){
-        if(forced[1]){
-          const dest3 = !newRunners[2] ? 3 : '本塁'; // 3塁が空いていれば3塁、埋まっていれば本塁
-          if(dest3===3){
-            runnerMoves.push({from:2, to:3, name:getName(runnerIds[1])});
-            newRunners[2]=true; newRunnerIds[2]=runnerIds[1];
+
+      } else {
+        // 単打(1)・二塁打(2)・三塁打(3)
+        // アルゴリズム：
+        // 1. バッターの到達塁(advance)を先に確定・配置
+        // 2. 既存ランナーをホーム側から順に「base+advance」へ配置
+        //    ただし本塁到達は3塁止まり（手動）
+        //    衝突したら前に押し出し → 本塁超えたら自動生還
+
+        const batterDest = advance; // 1,2,3
+        const newRunners   = [false,false,false];
+        const newRunnerIds = [null,null,null];
+        const autoScorers  = [];
+
+        // まずバッターを配置
+        newRunners[batterDest-1]   = true;
+        newRunnerIds[batterDest-1] = batterId;
+        runnerMoves.push({from:'打席', to:batterDest, name:getName(batterId)});
+
+        // 既存ランナーをホーム側（3塁）から順に処理
+        for(let base=3; base>=1; base--){
+          if(!runners[base-1]) continue;
+          const rId   = runnerIds[base-1];
+          const rName = getName(rId);
+
+          // 理想到達塁（本塁は3止まり）
+          let dest = Math.min(base + advance, 3);
+
+          // 衝突回避：すでに埋まっていればホーム側に押し出す
+          while(dest <= 3 && newRunners[dest-1]) dest++;
+
+          if(dest > 3){
+            // 押し出しで本塁生還
+            runnerMoves.push({from:base, to:'本塁', name:rName});
+            autoScorers.push({name:rName, type:'run'});
           } else {
-            runnerMoves.push({from:2, to:'本塁', name:getName(runnerIds[1])});
-          }
-          newRunners[1]=false; newRunnerIds[1]=null;
-        }
-      }
-      // 1塁→2塁（フォースの場合）
-      if(runners[0]){
-        if(forced[0]){
-          if(batterDest===1){
-            // バッターが1塁 → 1塁ランナーは2塁へ
-            if(!newRunners[1]){
-              runnerMoves.push({from:1, to:2, name:getName(runnerIds[0])});
-              newRunners[1]=true; newRunnerIds[1]=runnerIds[0];
-            } else {
-              // 2塁も埋まっていれば3塁へ
-              if(!newRunners[2]){
-                runnerMoves.push({from:1, to:3, name:getName(runnerIds[0])});
-                newRunners[2]=true; newRunnerIds[2]=runnerIds[0];
-              } else {
-                runnerMoves.push({from:1, to:'本塁', name:getName(runnerIds[0])});
-              }
-            }
-            newRunners[0]=false; newRunnerIds[0]=null;
-          } else {
-            // バッターが2塁以上→1塁ランナーは最低2塁
-            const dest2 = !newRunners[1] ? 2 : (!newRunners[2] ? 3 : '本塁');
-            runnerMoves.push({from:1, to:dest2, name:getName(runnerIds[0])});
-            if(dest2===2){ newRunners[1]=true; newRunnerIds[1]=runnerIds[0]; }
-            else if(dest2===3){ newRunners[2]=true; newRunnerIds[2]=runnerIds[0]; }
-            newRunners[0]=false; newRunnerIds[0]=null;
+            runnerMoves.push({from:base, to:dest, name:rName});
+            newRunners[dest-1]   = true;
+            newRunnerIds[dest-1] = rId;
           }
         }
-      }
-      // バッターを配置
-      runnerMoves.push({from:'打席', to:batterDest, name:getName(batterId)});
-      if(batterDest!=='本塁' && batterDest<=3){
-        newRunners[batterDest-1]=true; newRunnerIds[batterDest-1]=batterId;
-      }
-    }
 
-    cur.runners   = newRunners;
-    cur.runnerIds = newRunnerIds;
-    [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
-  }
+        cur.runners   = newRunners;
+        cur.runnerIds = newRunnerIds;
+        [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
 
-  // 得点・打点の反映 (homeRunMoves: 本塁生還したランナー)
-  const homeRunMoves = runnerMoves.filter(m=>m.to==='本塁');
-  if(homeRunMoves.length>0){
-    if(hitResult==='本塁打'){
-      // 本塁打は全員自動得点
-      const off2=cur.tb==='表'?'a':'b';
-      const totalRuns=homeRunMoves.length;
-      const inn2=Math.min(cur.inning,9)-1;
-      if(inn2>=0){scores[off2][inn2]=(scores[off2][inn2]||0)+totalRuns; updateScoreboard();}
-      cur.runs=totalRuns;
-      document.querySelectorAll('.or-btn.sel-r').forEach(b=>b.classList.remove('sel-r'));
-      document.querySelectorAll('.or-btn').forEach(btn=>{
-        const labels=['得点なし','1点','2点','3点','4点'];
-        if(btn.textContent.trim()===labels[totalRuns]) btn.classList.add('sel-r');
-      });
-      homeRunMoves.forEach(m=>{
-        if(!playerStats[off2][m.name]) playerStats[off2][m.name]={rbi:0,runs:0,hits:0,ab:0};
-        playerStats[off2][m.name].runs=(playerStats[off2][m.name].runs||0)+1;
-      });
-      if(batter?.name){
-        if(!playerStats[off2][batter.name]) playerStats[off2][batter.name]={rbi:0,runs:0,hits:0,ab:0};
-        playerStats[off2][batter.name].rbi=(playerStats[off2][batter.name].rbi||0)+totalRuns;
+        if(autoScorers.length){
+          openScoringPanel(autoScorers, batter?.name||'');
+        }
       }
-    } else {
-      // フォース自動生還はopenScoringPanelで選択
-      openScoringPanel(homeRunMoves.map(m=>({name:m.name,type:'run'})), batter?.name||'');
+
+      if(runnerMoves.length) showRunnerArrows(runnerMoves);
     }
   }
-
-  // 矢印表示
-  if(runnerMoves.length) showRunnerArrows(runnerMoves);
-
-  // 進塁矢印をgameに記録（autoAdvanceの得点追跡用）
-  runnerMoves.filter(m=>m.to==='本塁'&&m.name&&hitResult!=='本塁打').forEach(m=>{
-    const off3=cur.tb==='表'?'a':'b';
-    if(!playerStats[off3][m.name]) playerStats[off3][m.name]={rbi:0,runs:0,hits:0,ab:0};
-    // 得点はopenScoringPanel側で記録
-  });
 
   if(isOut || isReach){
+    const offPl2 = cur.tb==='表'?game.orderA:game.orderB;
     let nextOrder = cur.order + 1;
-    if(nextOrder > offPl.length) nextOrder = 1;
+    if(nextOrder > offPl2.length) nextOrder = 1;
     if(isOut){
       const addOuts = isStrikeout||isThreeBunt ? 1 : hitResult==='ゲッツー' ? 2 : (entry.outs||1);
       const newO = Math.min(cur.outsCount + addOuts, 3);
@@ -4021,6 +4039,7 @@ function autoAdvance(entry){
 
   drawMiniDiamond([], null);
   updateHeader();
+  updateRunnerDisplay();
 }
 
 function advanceInning(){
