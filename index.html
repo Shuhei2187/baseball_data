@@ -109,9 +109,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 #b0{bottom:0;left:19px;background:var(--navy);border-color:var(--navy);cursor:default;}
 
 /* ===== INPUT PANELS ===== */
-.panels{display:grid;grid-template-columns:190px 125px 115px 340px 170px 175px;border-top:1px solid var(--border);min-height:420px;}
-.panel{background:var(--white);border-right:1px solid var(--border);padding:10px;overflow-y:auto;}
+.panels{display:grid;grid-template-columns:200px 135px 120px 1fr 180px 200px;grid-template-rows:1fr;border-top:1px solid var(--border);min-height:0;height:calc(100vh - 280px);}
+.panel{background:var(--white);border-right:1px solid var(--border);padding:10px;overflow-y:auto;height:100%;}
 .panel:last-child{border-right:none;}
+.panel-left{overflow-y:auto;}
+.panel-main{grid-column:4;overflow-y:auto;}
+.panel-right-top{grid-column:5;overflow-y:auto;border-right:1px solid var(--border);}
+.panel-right-bottom{grid-column:6;overflow-y:auto;display:flex;flex-direction:column;}
 .ptitle{font-size:11px;font-weight:700;color:var(--navy);margin-bottom:8px;}
 .ptitle .badge{background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:4px;}
 
@@ -181,8 +185,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
 .res-btn.o{background:var(--navy);color:#fff;border-color:var(--navy);}
 .res-btn.sp{background:var(--purple);color:#fff;border-color:var(--purple);}
 /* inplay result */
-#inplay-section{display:none;margin-top:6px;padding:8px;background:var(--gray-light);border-radius:8px;border:1px solid var(--border);}
-#inplay-section.show{display:block;}
+#inplay-section{display:block;margin-top:6px;}
+#inplay-section.show #hq-wrap{display:block;}
+#inplay-section.show #hit-result-wrap{display:block;}
+#hq-wrap{display:none;}
+#hit-result-wrap{display:none;}
 .inplay-title{font-size:10px;font-weight:700;color:var(--navy);margin-bottom:6px;}
 
 /* Field map */
@@ -539,8 +546,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
   </div>
 
   <div class="panels">
-    <!-- P1: Zone -->
-    <div class="panel">
+
+    <!-- P1: 捕手の構え・投球コース -->
+    <div class="panel panel-left">
       <div class="ptitle">⚾ 捕手の構え</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:10px;" id="stance-grid">
         <button class="stance-btn" onclick="selectStance(this,'外高め')">外高め</button>
@@ -565,31 +573,42 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
         <button id="bt-right" class="active" onclick="setBatterSide('right')">右打ち</button>
         <button id="bt-left" onclick="setBatterSide('left')">左打ち</button>
       </div>
-    </div>
-
-    <!-- P2: Pitch type -->
-    <div class="panel">
-      <div class="ptitle">⚾ 球種</div>
-      <div id="pitcher-pitches-hint" style="display:none;font-size:9px;color:var(--blue);margin-bottom:4px;padding:3px 6px;background:var(--blue-light);border-radius:4px;"></div>
-      <div class="plist" id="ptype-list">
-        <div class="pg-label">直球系</div>
-        <button class="ptype-btn" onclick="selectPitch(this,'ストレート')">ストレート</button>
-        <button class="ptype-btn" onclick="selectPitch(this,'ツーシーム')">ツーシーム</button>
-        <div class="pg-label">曲がり球</div>
-        <button class="ptype-btn" onclick="selectPitch(this,'スライダー')">スライダー</button>
-        <button class="ptype-btn" onclick="selectPitch(this,'カットボール')">カットボール</button>
-        <button class="ptype-btn" onclick="selectPitch(this,'カーブ')">カーブ</button>
-        <div class="pg-label">落ちる球</div>
-        <button class="ptype-btn" onclick="selectPitch(this,'フォーク')">フォーク</button>
-        <button class="ptype-btn" onclick="selectPitch(this,'チェンジアップ')">チェンジアップ</button>
-        <button class="ptype-btn" onclick="selectPitch(this,'シンカー')">シンカー</button>
-        <div class="pg-label">その他</div>
-        <button class="ptype-btn" onclick="selectPitch(this,'特殊球')">特殊球</button>
+      <div class="ptitle" style="margin-top:8px;">投手目線</div>
+      <div id="pitcher-view-panel" style="display:none;margin-bottom:4px;">
+        <canvas id="pitcher-zone-canvas" width="200" height="200"
+          style="width:100%;border-radius:8px;cursor:crosshair;display:block;"
+          onclick="onPitcherZoneClick(event)"></canvas>
       </div>
     </div>
 
-    <!-- P3: Speed -->
-    <div class="panel">
+    <!-- P2: 球種 -->
+    <div class="panel panel-left">
+      <div class="ptitle">⚾ 球種</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">直球系</div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">
+        <button class="ptype-btn" onclick="selectPType(this,'ストレート')">ストレート</button>
+        <button class="ptype-btn" onclick="selectPType(this,'ツーシーム')">ツーシーム</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">曲がり球</div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">
+        <button class="ptype-btn" onclick="selectPType(this,'スライダー')">スライダー</button>
+        <button class="ptype-btn" onclick="selectPType(this,'カットボール')">カットボール</button>
+        <button class="ptype-btn" onclick="selectPType(this,'カーブ')">カーブ</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">落ちる球</div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">
+        <button class="ptype-btn" onclick="selectPType(this,'フォーク')">フォーク</button>
+        <button class="ptype-btn" onclick="selectPType(this,'チェンジアップ')">チェンジアップ</button>
+        <button class="ptype-btn" onclick="selectPType(this,'シンカー')">シンカー</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">その他</div>
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <button class="ptype-btn" onclick="selectPType(this,'特殊球')">特殊球</button>
+      </div>
+    </div>
+
+    <!-- P3: 球速 -->
+    <div class="panel panel-left">
       <div class="ptitle">⚾ 球速</div>
       <div class="spd-disp" id="spd-disp">—</div>
       <div class="spd-unit">km/h</div>
@@ -609,9 +628,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
       <button class="spd-clear" onclick="clearSpeed()">クリア</button>
     </div>
 
-    <!-- P4: Result + Inplay -->
-    <div class="panel">
+    <!-- P4: 投球結果 + インプレー詳細 -->
+    <div class="panel panel-main">
       <div class="ptitle">⚾ 投球結果 <span class="badge">必須</span></div>
+
+      <!-- ストライク -->
       <div class="res-section">
         <div class="res-section-label">ストライク</div>
         <div class="res-grid">
@@ -621,23 +642,28 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <button class="res-btn" onclick="selectResult(this,'ファールチップ','s')">ファールチップ</button>
         </div>
       </div>
+
+      <!-- ボール -->
       <div class="res-section">
         <div class="res-section-label">ボール</div>
         <div class="res-grid">
-          <button class="res-btn" id="btn-ball" onclick="selectBallBtn()"
-            style="font-weight:700;font-size:13px;">ボール</button>
+          <button class="res-btn" id="btn-ball" onclick="selectBallBtn()" style="font-weight:700;font-size:13px;">ボール</button>
           <button class="res-btn" onclick="selectResult(this,'死球','b')">死球</button>
-          <button class="res-btn" onclick="selectResult(this,'ボーク','b')"
-            style="font-size:11px;color:#888;border-style:dashed;">ボーク</button>
+          <button class="res-btn" onclick="selectResult(this,'ボーク','b')" style="font-size:11px;color:#888;border-style:dashed;">ボーク</button>
         </div>
       </div>
+
+      <!-- 打球 -->
       <div class="res-section">
         <div class="res-section-label">打球</div>
         <div class="res-grid">
           <button class="res-btn" onclick="selectResult(this,'インプレー','h')" id="btn-inplay"
             style="font-weight:700;font-size:13px;background:var(--blue);color:#fff;border-color:var(--blue);">インプレー</button>
+          <button class="res-btn" onclick="togglePickoff(this)" id="btn-pickoff" style="font-weight:700;font-size:12px;">牽制</button>
         </div>
       </div>
+
+      <!-- 特殊 -->
       <div class="res-section">
         <div class="res-section-label">特殊（複数可）</div>
         <div class="res-grid">
@@ -645,20 +671,38 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <button class="res-btn" onclick="toggleSp(this,'暴投')">暴投</button>
           <button class="res-btn" onclick="toggleSp(this,'捕逸')">捕逸</button>
           <button class="res-btn" id="btn-steal" onclick="toggleSteal(this)">盗塁</button>
-          <button class="res-btn" onclick="toggleSp(this,'牽制')">牽制</button>
           <button class="res-btn" onclick="toggleSp(this,'スリバン失敗')">スリバン失敗</button>
         </div>
-        <!-- 盗塁パネル -->
         <div id="steal-runner-panel" style="display:none;margin-top:6px;padding:6px 8px;background:var(--blue-light);border-radius:6px;">
           <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">各走者の結果を選択（複数選択可）</div>
           <div id="steal-runner-btns"></div>
         </div>
       </div>
 
-      <!-- Field + inplay detail (shown for inplay AND foul) -->
+      <!-- インプレー・牽制詳細 -->
       <div id="inplay-section">
         <div class="inplay-title" id="inplay-title">打球詳細</div>
-        <div id="hq-wrap">
+        <!-- 牽制 -->
+        <div id="pickoff-base-wrap" style="display:none;margin-bottom:8px;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">牽制した塁</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <button onclick="selectPickoffBase(1)" id="pickoff-b1"
+              style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);font-size:13px;font-weight:700;cursor:pointer;">1塁</button>
+            <button onclick="selectPickoffBase(2)" id="pickoff-b2"
+              style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);font-size:13px;font-weight:700;cursor:pointer;">2塁</button>
+            <button onclick="selectPickoffBase(3)" id="pickoff-b3"
+              style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);font-size:13px;font-weight:700;cursor:pointer;">3塁</button>
+          </div>
+          <div id="pickoff-result-wrap" style="display:none;margin-top:4px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:8px;border:1.5px solid #f0c0c0;background:#fff3f3;">
+              <input type="checkbox" id="pickoff-out-check" onchange="selectPickoffResult(this.checked?'アウト':'セーフ')"
+                style="width:18px;height:18px;cursor:pointer;accent-color:#b00;">
+              <span style="font-size:13px;font-weight:700;color:#b00;">アウトにする</span>
+            </label>
+          </div>
+        </div>
+        <!-- 打球質 -->
+        <div id="hq-wrap" style="display:none;">
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">打球の質</div>
           <div class="hq-grid">
             <button class="hq-btn" onclick="selectHQ(this,'ゴロ')">ゴロ</button>
@@ -667,42 +711,41 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
             <button class="hq-btn" onclick="selectHQ(this,'バント')">バント</button>
           </div>
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">落下点をタップ <span id="field-disp" style="color:var(--blue);font-weight:600;">—</span></div>
-        <div style="position:relative;display:inline-block;">
-          <canvas id="field-canvas" width="310" height="300" style="cursor:crosshair;border-radius:8px;display:block;"></canvas>
-        </div>
-        <!-- 送球操作ボタン -->
-        <div style="display:flex;gap:6px;margin-top:4px;">
-          <button onclick="undoLastCatch(document.getElementById('field-canvas'))"
-            style="flex:1;padding:5px;border-radius:7px;border:1.5px solid var(--border);background:var(--white);font-size:11px;font-weight:600;cursor:pointer;color:var(--navy);">
-            ← 1つ戻す
-          </button>
-          <button onclick="clearCatchOrder(document.getElementById('field-canvas'))"
-            style="flex:1;padding:5px;border-radius:7px;border:1.5px solid #f0c0c0;background:#fff3f3;font-size:11px;font-weight:600;cursor:pointer;color:#b00;">
-            🗑 送球クリア
-          </button>
-        </div>
-        <div id="hit-result-wrap">
-          <div style="font-size:10px;color:var(--muted);margin:6px 0 4px;">打球結果</div>
-          <div class="hit-result-grid" id="hit-result-grid">
-            <button class="hr-btn hr-hit" onclick="selectHitResult(this,'単打')">単打</button>
-            <button class="hr-btn hr-hit" onclick="selectHitResult(this,'二塁打')">二塁打</button>
-            <button class="hr-btn hr-hit" onclick="selectHitResult(this,'三塁打')">三塁打</button>
-            <button class="hr-btn hr-hit" onclick="selectHitResult(this,'本塁打')">本塁打</button>
-            <button class="hr-btn hr-hit" onclick="selectHitResult(this,'内野安打')">内野安打</button>
-            <button class="hr-btn hr-out" onclick="selectHitResult(this,'凡打')">凡打</button>
-            <button class="hr-btn hr-out" onclick="selectHitResult(this,'ゲッツー')">ゲッツー</button>
-            <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠打')">犠打</button>
-            <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠飛')">犠飛</button>
-            <button class="hr-btn hr-err" onclick="selectHitResult(this,'エラー')">失策出塁</button>
-            <button class="hr-btn hr-err" onclick="selectHitResult(this,'野選')">野選</button>
+        <!-- フィールド＋打球結果 横並び -->
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <div style="flex-shrink:0;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">落下点をタップ <span id="field-disp" style="color:var(--blue);font-weight:600;">—</span></div>
+            <canvas id="field-canvas" width="250" height="240" style="cursor:crosshair;border-radius:8px;display:block;"></canvas>
+            <div style="display:flex;gap:4px;margin-top:4px;">
+              <button onclick="undoLastCatch(document.getElementById('field-canvas'))"
+                style="flex:1;padding:3px;border-radius:6px;border:1.5px solid var(--border);background:var(--white);font-size:10px;cursor:pointer;color:var(--navy);">← 戻す</button>
+              <button onclick="clearCatchOrder(document.getElementById('field-canvas'))"
+                style="flex:1;padding:3px;border-radius:6px;border:1.5px solid #f0c0c0;background:#fff3f3;font-size:10px;cursor:pointer;color:#b00;">🗑 クリア</button>
+            </div>
+          </div>
+          <!-- 打球結果（フィールドの右・2列） -->
+          <div id="hit-result-wrap" style="display:none;flex:1;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">打球結果</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;" id="hit-result-grid">
+              <button class="hr-btn hr-hit" onclick="selectHitResult(this,'単打')">単打</button>
+              <button class="hr-btn hr-hit" onclick="selectHitResult(this,'二塁打')">二塁打</button>
+              <button class="hr-btn hr-hit" onclick="selectHitResult(this,'三塁打')">三塁打</button>
+              <button class="hr-btn hr-hit" onclick="selectHitResult(this,'本塁打')">本塁打</button>
+              <button class="hr-btn hr-hit" style="grid-column:1/3;" onclick="selectHitResult(this,'内野安打')">内野安打</button>
+              <button class="hr-btn hr-out" onclick="selectHitResult(this,'凡打')">凡打</button>
+              <button class="hr-btn hr-out" onclick="selectHitResult(this,'ゲッツー')">ゲッツー</button>
+              <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠打')">犠打</button>
+              <button class="hr-btn hr-sac" onclick="selectHitResult(this,'犠飛')">犠飛</button>
+              <button class="hr-btn hr-err" onclick="selectHitResult(this,'エラー')">失策出塁</button>
+              <button class="hr-btn hr-err" onclick="selectHitResult(this,'野選')">野選</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- P5: Out/Run -->
-    <div class="panel">
+    <!-- P5: アウト・得点 -->
+    <div class="panel panel-right-top">
       <div class="ptitle">⚾ アウト・得点</div>
       <div class="or-section">
         <div class="or-label">発生したアウト数</div>
@@ -725,48 +768,38 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
       </div>
     </div>
 
-    <!-- P6: Confirm -->
-    <div class="panel">
+    <!-- P6: 確定 -->
+    <div class="panel panel-right-bottom">
       <div class="ptitle">⚾ 確定</div>
       <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:6px;">✓ 投球結果のみで確定可能</div>
-      <!-- ミニダイヤモンド図（走者・矢印表示） -->
+      <!-- ミニダイヤモンド -->
       <div style="background:#1a2a1a;border-radius:8px;padding:6px;margin-bottom:8px;text-align:center;">
         <div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:2px;">走者をタップして進塁・アウト</div>
         <canvas id="mini-diamond" width="160" height="140" style="display:block;margin:0 auto;cursor:pointer;" onclick="onMiniDiamondClick(event)"></canvas>
-        <div id="preview-hint" style="display:none;font-size:9px;color:var(--blue);text-align:center;margin-top:2px;">丸をタップ→移動先タップ／同じ丸でアウト</div>
+        <div id="preview-hint" style="display:none;font-size:9px;color:var(--blue);text-align:center;margin-top:2px;"></div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:4px;" id="runner-chips">
           <div id="rc1" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">1塁 空</div>
           <div id="rc2" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">2塁 空</div>
           <div id="rc3" style="font-size:9px;padding:2px 3px;border-radius:4px;background:#333;color:#777;text-align:center;">3塁 空</div>
         </div>
-        <!-- ランナー選択時のアクションボタン -->
         <div id="runner-action-panel" style="display:none;margin-top:6px;padding:5px;background:rgba(255,255,255,.08);border-radius:6px;">
           <div style="font-size:9px;color:rgba(255,255,255,.5);margin-bottom:4px;" id="runner-action-label">選択中：—</div>
           <div style="display:flex;gap:4px;justify-content:center;">
-            <button onclick="runnerOut()" style="font-size:11px;padding:4px 12px;border-radius:8px;border:none;
-              background:var(--red);color:#fff;cursor:pointer;font-weight:700;">アウト</button>
-            <button onclick="cancelRunnerSelect()" style="font-size:11px;padding:4px 10px;border-radius:8px;
-              border:1px solid rgba(255,255,255,.3);background:none;color:rgba(255,255,255,.6);cursor:pointer;">キャンセル</button>
+            <button onclick="runnerOut()" style="font-size:11px;padding:4px 12px;border-radius:8px;border:none;background:var(--red);color:#fff;cursor:pointer;font-weight:700;">アウト</button>
+            <button onclick="cancelRunnerSelect()" style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:none;color:rgba(255,255,255,.6);cursor:pointer;">キャンセル</button>
           </div>
         </div>
       </div>
-      <div class="cf-list" id="cf-list"></div>
-      <!-- 進塁結果表示（確定後） -->
-      <div id="runner-result-box" style="display:none;margin-bottom:8px;background:var(--amber-light);border:1.5px solid #f0d090;border-radius:8px;padding:8px 10px;">
-        <div style="font-size:11px;font-weight:700;color:#7a5010;margin-bottom:4px;">📍 走者の動き</div>
-        <div id="runner-result-text" style="font-size:12px;color:#5a3a08;line-height:1.8;"></div>
-      </div>
-      <textarea class="memo-box" id="memo-box" placeholder="メモ（任意）" maxlength="200"></textarea>
-
-      <!-- 作戦メモ（折りたたみ） -->
-      <div style="margin-bottom:6px;">
+      <div class="cf-list" id="cf-list" style="flex:1;overflow-y:auto;margin-bottom:6px;"></div>
+      <textarea class="memo-box" id="memo-box" placeholder="メモ（任意）" maxlength="200" style="height:50px;resize:none;"></textarea>
+      <!-- 作戦メモ -->
+      <div style="margin-bottom:6px;position:relative;">
         <button onclick="toggleStrategyPanel()" id="strategy-toggle-btn"
-          style="width:100%;text-align:left;font-size:11px;padding:5px 8px;border:1px solid var(--border);
-                 border-radius:6px;background:var(--white);cursor:pointer;color:var(--muted);">
+          style="width:100%;text-align:left;font-size:11px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--white);cursor:pointer;color:var(--muted);">
           📋 作戦メモ <span id="strategy-badge" style="display:none;background:var(--blue);color:#fff;border-radius:8px;padding:1px 6px;font-size:10px;margin-left:4px;"></span>
           <span style="float:right;" id="strategy-arrow">▼</span>
         </button>
-        <div id="strategy-panel" style="display:none;padding:8px;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;background:var(--gray-light);">
+        <div id="strategy-panel" style="display:none;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--gray-light);position:absolute;bottom:100%;left:0;right:0;z-index:50;box-shadow:0 -4px 12px rgba(0,0,0,.1);">
           <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">🏏 バント</div>
           <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;">
             <button class="res-btn sp-sm" onclick="toggleSp(this,'バント構え')">バント構え</button>
@@ -792,12 +825,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           </div>
         </div>
       </div>
-
-      <!-- 守備エラー記録ボタン（投球中の守備エラーを別途記録） -->
+      <!-- 守備エラー -->
       <div style="margin-bottom:8px;">
         <button onclick="toggleFieldingErrorPanel()" id="err-btn-fielding"
           style="width:100%;padding:7px;border-radius:8px;border:1.5px solid #f0c0c0;background:#fff3f3;color:#b00;font-size:12px;font-weight:700;cursor:pointer;">⚠️ 守備エラーを記録する</button>
-        <!-- 守備エラー詳細パネル -->
         <div id="error-detail-panel" style="display:none;padding:8px 10px;background:#fff3f3;border:1px solid #f0c0c0;border-radius:8px;margin-top:6px;">
           <div style="font-size:11px;font-weight:700;color:#b00;margin-bottom:6px;">⚠️ 守備エラー詳細</div>
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px;">エラーした守備選手</div>
@@ -806,7 +837,6 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <div style="display:flex;flex-wrap:wrap;gap:4px;" id="error-type-btns"></div>
         </div>
       </div>
-
       <button class="confirm-btn" onclick="confirmPitch()">確定する</button>
     </div>
   </div>
@@ -1481,7 +1511,7 @@ function renderSetup() {
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px 12px;background:${dhOn?'var(--amber-light)':'var(--gray-light)'};border-radius:8px;border:1px solid ${dhOn?'#f0d090':'var(--border)'};">
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--navy);">DH制</div>
-          <div style="font-size:11px;color:var(--muted);">指名打者制を使用する</div>
+          <div style="font-size:11px;color:var(--muted);">指名打者制（DH制）を使用する</div>
         </div>
         <button onclick="toggleDH('${t}')"
           style="padding:5px 14px;border-radius:20px;border:none;font-size:12px;font-weight:700;cursor:pointer;
@@ -1490,7 +1520,7 @@ function renderSetup() {
         </button>
       </div>
       <div id="dh-player-panel-${t}" style="margin-top:6px;${dhOn?'':'display:none;'}">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">指名打者（DH）を選択</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">DH制：先発投手を登録（打順には入れず守備のみ）</div>
         <select id="dh-player-sel-${t}" onchange="setDHPlayer('${t}',this.value)" style="width:100%;font-size:12px;padding:5px 8px;">
           <option value="">— 選択 —</option>
           ${(sel?teams.find(tm=>tm.id===sel.id)?.players||[]:[]).map(p=>'<option value="'+p.name+'" '+((ti===0?game.dhPlayerA:game.dhPlayerB)===p.name?'selected':'')+'>'+( p.num?'#'+p.num+' ':'')+p.name+'</option>').join('')}
@@ -2459,6 +2489,202 @@ function clearSpeed(){
 }
 
 // ===== RESULT =====
+function applyHomeRunners(homeList){
+  // pr['home']の確定処理：得点・打点・アウトを反映
+  if(!homeList || !homeList.length) return;
+  const off = cur.tb==='表'?'a':'b';
+  const offPl = cur.tb==='表'?game.orderA:game.orderB;
+  const batter = offPl[cur.order-1];
+  const inn = Math.min(cur.inning,9)-1;
+
+  homeList.forEach(h=>{
+    if(h.state === 'scored'){
+      if(h.score !== false){
+        if(inn>=0){ scores[off][inn]=(scores[off][inn]||0)+1; }
+        // ランナー本人の得点
+        const scorer = offPl.find(p=>p.name===h.name||(p.num&&p.num===h.name));
+        if(scorer?.name){
+          if(!playerStats[off][scorer.name]) playerStats[off][scorer.name]={rbi:0,runs:0,hits:0,ab:0};
+          playerStats[off][scorer.name].runs = (playerStats[off][scorer.name].runs||0)+1;
+        }
+        if(h.rbi && batter?.name){
+          if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+          playerStats[off][batter.name].rbi = (playerStats[off][batter.name].rbi||0)+1;
+        }
+      }
+    } else if(h.state === 'out'){
+      cur.outsCount = Math.min(cur.outsCount+1, 3);
+      updateCountDots('o', cur.outsCount);
+    }
+    // pending（未決定）は生還扱い（デフォルト）
+    else if(h.state === 'pending'){
+      if(inn>=0){ scores[off][inn]=(scores[off][inn]||0)+1; }
+    }
+  });
+  updateScoreboard();
+}
+
+function showHomeRunnerModal(idx){
+  const homeList = cur._preview && cur._preview.pr && cur._preview.pr['home'];
+  if(!homeList || !homeList[idx]) return;
+  const h = homeList[idx];
+  // デフォルト値セット
+  if(h.state === 'pending'){ h.state='scored'; h.score=true; h.rbi=false; }
+
+  let modal = document.getElementById('home-modal-overlay');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'home-modal-overlay';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  const isOut   = h.state==='out';
+  const hasScore= h.score!==false && !isOut;
+  const hasRbi  = !!h.rbi && !isOut;
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:280px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+      <div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:4px;">🏠 本塁到達</div>
+      <div style="font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px;">${h.name}</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border:1.5px solid #f0c0c0;background:#fff3f3;margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="hm-out" ${isOut?'checked':''} onchange="homeCheckOut(this.checked,${idx})" style="width:18px;height:18px;accent-color:#b00;">
+        <span style="font-size:13px;font-weight:700;color:#b00;">アウト</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue-light);margin-bottom:8px;cursor:pointer;${isOut?'opacity:0.4':''};">
+        <input type="checkbox" id="hm-score" ${hasScore?'checked':''} ${isOut?'disabled':''} onchange="homeCheckScore(this.checked,${idx})" style="width:18px;height:18px;">
+        <span style="font-size:13px;font-weight:700;">得点</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue-light);margin-bottom:16px;cursor:pointer;${!hasScore||isOut?'opacity:0.4':''};">
+        <input type="checkbox" id="hm-rbi" ${hasRbi?'checked':''} ${!hasScore||isOut?'disabled':''} onchange="homeCheckRbi(this.checked,${idx})" style="width:18px;height:18px;">
+        <span style="font-size:13px;font-weight:700;">打点</span>
+      </label>
+      <div style="display:flex;gap:8px;">
+        <button onclick="homeCancelRunner(${idx})" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--navy);font-size:12px;font-weight:700;cursor:pointer;">↩ キャンセル</button>
+        <button onclick="homeApply(${idx})" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--navy);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">OK</button>
+      </div>
+    </div>`;
+}
+function homeCheckOut(checked, idx){
+  const h = cur._preview.pr['home'][idx];
+  h.state = checked ? 'out' : 'scored';
+  if(checked){ h.score=false; h.rbi=false; }
+  else { h.score=true; }
+  showHomeRunnerModal(idx);
+}
+function homeCheckScore(checked, idx){
+  cur._preview.pr['home'][idx].score = checked;
+  if(!checked) cur._preview.pr['home'][idx].rbi = false;
+  showHomeRunnerModal(idx);
+}
+function homeCheckRbi(checked, idx){
+  cur._preview.pr['home'][idx].rbi = checked;
+}
+function homeApply(idx){
+  document.getElementById('home-modal-overlay').style.display = 'none';
+  cur._preview._manuallyModified = true;
+  drawMiniDiamond(cur._preview.arrows||[], null, cur._preview.pr);
+  const nextPending = cur._preview.pr['home'].findIndex((hh,i)=>i>idx && hh.state==='pending');
+  if(nextPending >= 0) setTimeout(()=>showHomeRunnerModal(nextPending), 200);
+}
+function homeCancelRunner(idx){
+  const homeList = cur._preview && cur._preview.pr && cur._preview.pr['home'];
+  if(!homeList || !homeList[idx]) return;
+  const h = homeList[idx];
+  const fromBase = h.fromBase;
+  if(typeof fromBase === 'number' && fromBase >= 1 && fromBase <= 3){
+    cur._preview.pr[fromBase-1] = h.name;
+    cur._preview.arrows = (cur._preview.arrows||[]).filter(a=>!(a.to==='本塁' && a.name===h.name));
+  } else if(fromBase === '打席'){
+    if(cur._preview.pr['batter']) cur._preview.pr['batter'].showAtHome = true;
+    cur._preview.arrows = (cur._preview.arrows||[]).filter(a=>!(a.to==='本塁' && a.name===h.name));
+  }
+  homeList.splice(idx, 1);
+  document.getElementById('home-modal-overlay').style.display = 'none';
+  cur._preview._manuallyModified = true;
+  drawMiniDiamond(cur._preview.arrows||[], null, cur._preview.pr);
+}
+
+function togglePickoff(btn){
+  // 既に牽制が選択されていたら解除（トグル）
+  if(cur.result === '牽制'){
+    cur.result = '';
+    cur.resultType = '';
+    btn.classList.remove('sp');
+    // inplay-sectionを隠す
+    document.getElementById('pickoff-base-wrap').style.display = 'none';
+    const prw2 = document.getElementById('pickoff-result-wrap');
+    if(prw2) prw2.style.display = 'none';
+    document.getElementById('inplay-title').textContent = '打球詳細';
+    // 牽制先塁のハイライトをリセット
+    [1,2,3].forEach(b=>{
+      const pb = document.getElementById('pickoff-b'+b);
+      if(pb){ pb.style.background='var(--white)'; pb.style.borderColor='var(--border)'; pb.style.color='var(--text)'; }
+    });
+    cur.specials = cur.specials.filter(s=>!s.startsWith('牽制:'));
+    updateConfirm();
+    return;
+  }
+  // 牽制を選択
+  // 他の結果ボタンのハイライトをクリア
+  document.querySelectorAll('.res-btn').forEach(b=>b.classList.remove('s','b','h','o'));
+  btn.classList.add('sp');
+  cur.result = '牽制';
+  cur.resultType = 'sp';
+  // フィールドは常に表示されているので追加操作のみ
+  document.getElementById('pickoff-base-wrap').style.display = 'block';
+  const hqw2 = document.getElementById('hq-wrap');
+  const hrw2 = document.getElementById('hit-result-wrap');
+  if(hqw2) hqw2.style.display = 'none';
+  if(hrw2) hrw2.style.display = 'none';
+  document.getElementById('inplay-title').textContent = '牽制先を選択';
+  updateConfirm();
+}
+
+function selectPickoffBase(base){
+  // 塁ボタンのハイライト
+  [1,2,3].forEach(b=>{
+    const pb = document.getElementById('pickoff-b'+b);
+    if(!pb) return;
+    if(b === base){
+      pb.style.background = 'var(--navy)';
+      pb.style.borderColor = 'var(--navy)';
+      pb.style.color = '#fff';
+    } else {
+      pb.style.background = 'var(--white)';
+      pb.style.borderColor = 'var(--border)';
+      pb.style.color = 'var(--text)';
+    }
+  });
+  // 牽制先をspecialsに記録（既存の牽制: を上書き）
+  cur.specials = cur.specials.filter(s=>!s.startsWith('牽制:'));
+  cur.specials.push('牽制:' + base + '塁');
+  cur._pickoffBase = base; // 選択した塁を保持
+  cur._pickoffResult = null; // 結果リセット
+
+  // セーフ/アウト選択を表示、チェックボックスをリセット（デフォルト＝セーフ）
+  const rw = document.getElementById('pickoff-result-wrap');
+  if(rw) rw.style.display = 'block';
+  const cb = document.getElementById('pickoff-out-check');
+  if(cb) cb.checked = false;
+  cur._pickoffResult = 'セーフ'; // デフォルトはセーフ
+
+  updateConfirm();
+}
+
+function selectPickoffResult(result){
+  cur._pickoffResult = result;
+  cur.specials = cur.specials.filter(s=>!s.startsWith('牽制結果:'));
+  cur.specials.push('牽制結果:' + result);
+
+  if(result === 'アウト'){
+    const previewOuts = Math.min(cur.outsCount + 1, 3);
+    updateCountDots('o', previewOuts); // 通常の更新と同じ方法でプレビュー
+  } else {
+    updateCountDots('o', cur.outsCount); // セーフに戻したら実際のカウントに戻す
+  }
+  updateConfirm();
+}
+
 function selectResult(btn, val, type){
   // ストライク・ボール・打球ボタンのハイライトをすべてクリア
   document.querySelectorAll('.res-btn').forEach(b=>{
@@ -2474,13 +2700,15 @@ function selectResult(btn, val, type){
 
   // ファール・インプレーで打球詳細を表示
   const showField = (val==='インプレー' || val==='ファール' || val==='ファールチップ');
+  const showHitResult = (val==='インプレー'); // 打球結果はインプレーのみ
   document.getElementById('inplay-section').classList.toggle('show', showField);
-  const hqw=document.getElementById('hq-wrap'), hrw=document.getElementById('hit-result-wrap'), ipt=document.getElementById('inplay-title');
-  if(hqw) hqw.style.display = val==='インプレー'?'':'none';
-  if(hrw) hrw.style.display = val==='インプレー'?'':'none';
-  if(ipt) ipt.textContent   = val==='インプレー'?'打球詳細':'落下点';
+  const hqw = document.getElementById('hq-wrap');
+  const hrw = document.getElementById('hit-result-wrap');
+  if(hqw) hqw.style.display = showField ? 'block' : 'none';
+  if(hrw) hrw.style.display = showHitResult ? 'flex' : 'none';
+  const ipt=document.getElementById('inplay-title');
+  if(ipt) ipt.textContent = val==='インプレー'?'打球詳細':'落下点';
   if(!showField){ cur.hitQuality=''; cur.fieldZone=''; cur.fieldLabel=''; cur.hitResult=''; }
-  // フィールドキャンバスを再描画（display:noneから表示になった時のサイズ問題対策）
   if(showField){ const fc=document.getElementById('field-canvas'); if(fc) drawField(fc); }
 
   // アウト・得点パネルをリセットしてから再設定
@@ -2555,7 +2783,7 @@ function calcPreview(){
       homeOrder.forEach(({from, lbl})=>{
         if(from>0 && !runners[from-1]) return;
         arrows.push({from: from===0?'打席':from, to:'本塁', name:lbl||'?'});
-        pr[3] = pr[3] ? pr[3]+','+lbl : lbl;
+        if(!pr['home']) pr['home']=[]; pr['home'].push({name:lbl, state:'pending', fromBase:from===0?'打席':from});
       });
       pr[0]=false; pr[1]=false; pr[2]=false;
       pr['batter'] = null;
@@ -2574,7 +2802,7 @@ function calcPreview(){
         let dest = Math.min(rawDest, 3);
         if(dest===3 && newPr[2]){
           arrows.push({from: from===0?'打席':from, to:'本塁', name:lbl||'?'});
-          pr[3] = pr[3] ? pr[3]+','+lbl : lbl;
+          if(!pr['home']) pr['home']=[]; pr['home'].push({name:lbl, state:'pending', fromBase:from===0?'打席':from});
         } else if(dest>=1 && dest<=3){
           newPr[dest-1] = lbl||'?';
           arrows.push({from: from===0?'打席':from, to:dest, name:lbl||'?'});
@@ -2585,31 +2813,39 @@ function calcPreview(){
     }
 
   } else if(isWalk){
-    // 四死球
-    const newPr = [pr[0],pr[1],pr[2]];
-    for(let base=1; base<=3; base++){
-      if(newPr[base-1]){
-        if(base===3){
-          arrows.push({from:3, to:'本塁', name:newPr[2]});
-          pr[3]=newPr[2]; newPr[2]=false;
-        } else {
-          const lbl=newPr[base-1];
-          arrows.push({from:base, to:base+1, name:lbl});
-          newPr[base]=lbl; newPr[base-1]=false;
-        }
-      } else { break; }
+    // 四死球：1塁が詰まっている場合のみ押し出し連鎖（元の配置で判定）
+    const origPr = [pr[0], pr[1], pr[2]];
+    const newPr  = [pr[0], pr[1], pr[2]];
+
+    if(origPr[0] && origPr[1] && origPr[2]){
+      // 満塁→3塁ランナー生還
+      arrows.push({from:3, to:'本塁', name:origPr[2]});
+      if(!pr['home']) pr['home']=[]; pr['home'].push({name:origPr[2], state:'pending', fromBase:3});
+      newPr[2]=origPr[1]; newPr[1]=origPr[0]; newPr[0]=false;
+      arrows.push({from:2, to:3, name:origPr[1]});
+      arrows.push({from:1, to:2, name:origPr[0]});
+    } else if(origPr[0] && origPr[1]){
+      // 1・2塁→両者進塁
+      newPr[2]=origPr[1]; newPr[1]=origPr[0]; newPr[0]=false;
+      arrows.push({from:2, to:3, name:origPr[1]});
+      arrows.push({from:1, to:2, name:origPr[0]});
+    } else if(origPr[0]){
+      // 1塁のみ→2塁へ
+      newPr[1]=origPr[0]; newPr[0]=false;
+      arrows.push({from:1, to:2, name:origPr[0]});
     }
+    // 2塁・3塁のみ等、1塁が空の場合はランナー動かない
     arrows.push({from:'打席', to:1, name:bLabel});
     newPr[0]=bLabel;
     pr[0]=newPr[0]; pr[1]=newPr[1]; pr[2]=newPr[2];
-    pr['batter'] = null; // 四死球時も打席の丸不要
+    pr['batter'] = null;
 
   } else if(isSacBunt){
     const newPr = [false,false,false];
     [3,2,1].forEach(base=>{
       if(!runners[base-1]) return;
       const dest=base+1; const lbl=getLabel(rIds[base-1]);
-      if(dest>=4){ arrows.push({from:base,to:'本塁',name:lbl}); pr[3]=lbl; }
+      if(dest>=4){ arrows.push({from:base,to:'本塁',name:lbl}); if(!pr['home']) pr['home']=[]; pr['home'].push({name:lbl, state:'pending', fromBase:base}); }
       else { newPr[dest-1]=lbl; arrows.push({from:base,to:dest,name:lbl}); }
     });
     pr[0]=newPr[0]; pr[1]=newPr[1]; pr[2]=newPr[2];
@@ -2618,7 +2854,7 @@ function calcPreview(){
   } else if(isSacFly){
     if(runners[2]){
       const lbl=getLabel(rIds[2]);
-      arrows.push({from:3,to:'本塁',name:lbl}); pr[3]=lbl;
+      arrows.push({from:3,to:'本塁',name:lbl}); if(!pr['home']) pr['home']=[]; pr['home'].push({name:lbl, state:'pending', fromBase:3});
       pr[2]=false;
     }
     pr['batter']={name:bLabel, out:true};
@@ -2642,7 +2878,7 @@ function updatePreview(){
   // pr配列のコピー時にbatter等のプロパティも保持
   const prCopy = pr ? [...pr] : null;
   if(prCopy && pr['batter']) prCopy['batter'] = {...pr['batter']};
-  if(prCopy && pr[3]) prCopy[3] = pr[3];
+  if(prCopy && pr['home']) prCopy['home'] = pr['home'].map(h=>({...h}));
   if(prCopy && pr[4]) prCopy[4] = [...pr[4]];
   cur._preview = { pr: prCopy, arrows: arrows ? arrows.map(a=>({...a})) : [] };
   cur._selectedPreviewRunner = null;
@@ -2659,20 +2895,28 @@ function updatePreview(){
   if(hint) hint.style.display = (cur._preview.arrows && cur._preview.arrows.length > 0) ? 'block' : 'none';
   updateResultButtonLabels();
 
-  // 自動生還が発生している場合は即座にモーダルを表示
+  // 自動生還が発生している場合：pr['home']に追加してモーダルを表示
   const homeArrows = (arrows||[]).filter(a=>a.to==='本塁');
   const prevKey = homeArrows.map(a=>a.name).join(',');
   if(homeArrows.length > 0 && prevKey !== cur._lastPreviewHomeKey){
     cur._lastPreviewHomeKey = prevKey;
-    _homeQueue = []; // リセット（重複防止）
+    // pr['home']を再構築（重複防止）
+    if(!cur._preview.pr['home']) cur._preview.pr['home'] = [];
+    // 未処理のものだけ追加（既存は維持）
+    const existingNames = cur._preview.pr['home'].map(h=>h.name);
     homeArrows.forEach(a=>{
-      const offPl2 = cur.tb==='表'?game.orderA:game.orderB;
-      const rId = typeof a.from==='number' ? (cur.runnerIds ? cur.runnerIds[a.from-1] : null) : (a.from==='打席'?offPl2[cur.order-1]?.id:null);
-      const rName = a.name||'走者';
-      const isHit = ['単打','二塁打','三塁打','本塁打'].includes(cur.hitResult);
-      queueForHome(rName, rId, (cur.hitResult||cur.result)+'による生還', {score:true, rbi:false});
+      if(!existingNames.includes(a.name)){
+        cur._preview.pr['home'].push({
+          name: a.name||'走者',
+          state: 'pending',
+          fromBase: a.from,
+          score: true, rbi: false
+        });
+      }
     });
-    setTimeout(processHomeQueue, 100);
+    // pendingのものだけモーダルに表示（順番に）
+    const pendingIdx = cur._preview.pr['home'].findIndex(h=>h.state==='pending');
+    if(pendingIdx >= 0) setTimeout(()=>showHomeRunnerModal(pendingIdx), 100);
   } else if(homeArrows.length === 0){
     cur._lastPreviewHomeKey = null;
   }
@@ -2842,7 +3086,6 @@ function selectStealRunner(base){ cur.stealRunner=base; }
 // ===== エラー詳細 =====
 function selectHitResult(btn, val){
   document.querySelectorAll('#hit-result-grid .hr-btn').forEach(b=>b.classList.remove('sel'));
-  document.querySelectorAll('.bz,.ptype-btn,.hq-btn,.stance-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');
   cur.hitResult = val;
 
@@ -3093,35 +3336,49 @@ function drawMiniDiamond(arrows, selectedBase, previewRunners){
     const movingFromBases = new Set((arrowList||[]).map(a=>a.from).filter(f=>typeof f==='number'));
 
     // 移動しないランナー（元の位置に黄色）
+    // ホームに行ったランナー・pr[]でクリアされたランナーは除外
+    const homeNamesStatic = (previewRunners['home']||[]).map(h=>String(h.name).trim());
     [1,2,3].forEach(b=>{
       if(!runners[b-1]) return;
       if(movingFromBases.has(b)) return;
+      // pr[b-1]がfalseになっていたら（手動でホーム/アウトに送られた）除外
+      if(previewRunners[b-1] === false) return;
       const pos=bp[b]; if(!pos) return;
       const rId=runnerIds[b-1];
       const pl=rId ? offPl.find(p=>p.id===rId) : null;
       const label=pl?(pl.num||pl.name.slice(0,2)):String(b);
+      // ホームに行ったランナーは除外
+      if(homeNamesStatic.includes(String(label).trim())) return;
       drawDot(pos.x, pos.y, label, '#F5A623', '#fff');
     });
 
-    // 移動先の丸（黄色・実線）- 同じ塁に複数いる場合は横にずらす
+    // 移動先の丸（黄色・実線）- ホームに行ったランナーは除外
+    const homeNames = (previewRunners['home']||[]).map(h=>String(h.name).trim());
     [1,2,3].forEach(b=>{
       const label = previewRunners[b-1];
       if(!label) return;
       const pos=bp[b]; if(!pos) return;
-      const names = String(label).split(',');
+      const names = String(label).split(',').filter(n=>!homeNames.includes(n.trim()));
+      if(!names.length) return;
       names.forEach((name, i)=>{
         const offsetX = names.length > 1 ? (i - (names.length-1)/2) * 20 : 0;
         drawDot(pos.x+offsetX, pos.y, name.trim(), '#F5A623', '#FFD700');
       });
     });
 
-    // 本塁到達者（黄色・複数は横にずらす）
-    if(previewRunners[3]){
-      const scorers = String(previewRunners[3]).split(',');
+    // 本塁到達者（状態に応じて色分け・タップ可能）
+    if(previewRunners['home'] && previewRunners['home'].length){
+      const homeList = previewRunners['home'];
       const homePos = bp['本塁'];
-      scorers.forEach((name, i)=>{
-        const offsetX = (i - (scorers.length-1)/2) * 22;
-        drawDot(homePos.x+offsetX, homePos.y, name.trim(), '#F5A623', '#FFD700');
+      homeList.forEach((h, i)=>{
+        const offsetX = homeList.length > 1 ? (i-(homeList.length-1)/2)*22 : 0;
+        const color  = h.state==='scored' ? '#2E7D32'
+                     : h.state==='out'    ? '#DC3232'
+                     : '#F5A623'; // pending
+        const stroke = h.state==='scored' ? '#4CAF50'
+                     : h.state==='out'    ? '#ff4444'
+                     : '#FFD700';
+        drawDot(homePos.x+offsetX, homePos.y-10, h.name, color, stroke);
       });
     }
 
@@ -3271,14 +3528,19 @@ function applyPreviewRunnerAction(dest){
       arrow.to = 'アウト';
       if(!cur._preview.pr[4]) cur._preview.pr[4] = [];
       cur._preview.pr[4].push({base: fromBase, name: arrow.name||'走者'});
-    } else if(dest === '本塁'){
-      arrow.to = '本塁';
-      const rName = arrow.name||'走者';
-      if(!cur._preview.pr[3]) cur._preview.pr[3] = '';
-      cur._preview.pr[3] = cur._preview.pr[3] ? cur._preview.pr[3]+','+rName : rName;
-      queueForHome(rName, null, '手動操作による本塁到達', {score:false, rbi:false});
-      setTimeout(processHomeQueue, 100);
-    } else if(typeof dest==='number'){
+     } else if(dest === '本塁'){
+       arrow.to = '本塁';
+       const rName = arrow.name||'走者';
+       if(!cur._preview.pr['home']) cur._preview.pr['home']=[];
+       const newHomeIdx1 = cur._preview.pr['home'].length;
+       cur._preview.pr['home'].push({name:rName, state:'pending', fromBase:fromBase});
+       cur._pendingPreviewIdx = null;
+       cur._tapSourceBase = null;
+       cur._selectedPreviewRunner = null;
+       cur._preview._manuallyModified = true;
+       drawMiniDiamond(cur._preview.arrows||[], null, cur._preview.pr);
+       showHomeRunnerModal(newHomeIdx1);
+       return;
       arrow.to = dest;
       cur._preview.pr[dest-1] = arrow.name || true;
     }
@@ -3291,12 +3553,17 @@ function applyPreviewRunnerAction(dest){
       if(!cur._preview.pr[4]) cur._preview.pr[4] = [];
       cur._preview.pr[4].push({base: srcBase, name: rName||'走者'});
     } else if(dest === '本塁'){
-      const nm = rName||'走者';
-      if(!cur._preview.pr[3]) cur._preview.pr[3] = '';
-      cur._preview.pr[3] = cur._preview.pr[3] ? cur._preview.pr[3]+','+nm : nm;
-      queueForHome(nm, null, '手動操作による本塁到達', {score:false, rbi:false});
-      setTimeout(processHomeQueue, 100);
-    } else if(typeof dest==='number'){
+       const nm = rName||'走者';
+       if(!cur._preview.pr['home']) cur._preview.pr['home']=[];
+       const newHomeIdx2 = cur._preview.pr['home'].length;
+       cur._preview.pr['home'].push({name:nm, state:'pending', fromBase:srcBase});
+       cur._pendingPreviewIdx = null;
+       cur._tapSourceBase = null;
+       cur._selectedPreviewRunner = null;
+       cur._preview._manuallyModified = true;
+       drawMiniDiamond(cur._preview.arrows||[], null, cur._preview.pr);
+       showHomeRunnerModal(newHomeIdx2);
+       return;
       cur._preview.pr[dest-1] = rName || true;
     }
   }
@@ -3964,6 +4231,20 @@ function onMiniDiamondClick(e){
 
   // ===== プレビューモード（結果選択後） =====
   if(cur.result && cur._preview){
+    // ホームの丸をタップしたか判定
+    const homeList = cur._preview.pr && cur._preview.pr['home'];
+    if(homeList && homeList.length){
+      const homePos = bp['本塁'];
+      for(let idx=0; idx<homeList.length; idx++){
+        const offsetX = homeList.length > 1 ? (idx-(homeList.length-1)/2)*22 : 0;
+        const hx = homePos.x+offsetX, hy = homePos.y-10;
+        if(Math.sqrt((x-hx)**2+(y-hy)**2) <= 18){
+          showHomeRunnerModal(idx);
+          return;
+        }
+      }
+    }
+
     if(tappedBase === null){
       // バッターの丸をタップしたか判定（ホームプレート付近、cy-14付近）
       const W=canvas.width, H=canvas.height, cx2=W/2, cy2=H-14, s2=W*0.27;
@@ -4292,10 +4573,87 @@ function updateConfirm(){
 
 // ===== CONFIRM PITCH =====
 function confirmPitch(){
-  // 牽制・盗塁などの特殊のみの場合は result なしで確定可能
-  const hasSpecialOnly = !cur.result && cur.specials.length > 0;
-  if(!cur.result && !hasSpecialOnly){alert('投球結果を選択してください');return;}
-  if(hasSpecialOnly) cur.result = cur.specials[0]; // 特殊を結果として記録
+  // 牽制は単独確定可能
+  if(cur.result === '牽制'){
+    const offPlPickoff = cur.tb==='表'?game.orderA:game.orderB;
+    // チェックボックスから直接アウト判定（_pickoffResultより確実）
+    const outCheck = document.getElementById('pickoff-out-check');
+    const isPickoffOut = outCheck ? outCheck.checked : (cur._pickoffResult === 'アウト');
+    // 牽制アウトの場合：ランナー消去・アウト増加・打順/カウント継続
+    if(isPickoffOut && cur._pickoffBase){
+      const base = cur._pickoffBase;
+      if(cur.runners[base-1]){
+        cur.runners[base-1] = false;
+        cur.runnerIds[base-1] = null;
+        [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on', cur.runners[b-1]); });
+      }
+      cur.outsCount = Math.min(cur.outsCount + 1, 3);
+      updateCountDots('o', cur.outsCount);
+      // 3アウトでイニング交代（そのバッターから0-0でスタート）
+      if(cur.outsCount >= 3){
+        // カウントリセット・打順そのまま
+        cur.balls=0; cur.strikes=0;
+        updateCountDots('b',0); updateCountDots('s',0);
+        // ログに記録してからイニング交代
+        pitchLog.push({
+          num:pitchLog.length+1, inning:cur.inning, tb:cur.tb, order:cur.order,
+          pitcher: offPlPickoff.find(p=>p.pos==='投手')?.name||'',
+          batter: offPlPickoff[cur.order-1]?.name||'',
+          pitchType:cur.pitchType||'', speed:parseInt(spdStr)||null,
+          zone:cur.zone||'', zoneLabel:cur.zoneLabel||'',
+          result:'牽制', resultType:'sp',
+          specials:[...cur.specials],
+          hitQuality:'', fieldLabel:'', fieldZone:'', hitResult:'',
+          outs:1, runs:null, runners: cur.runners.map((r,i)=>r?i+1+'塁':'').filter(Boolean).join(','),
+          bso:`${cur.balls}-${cur.strikes}-${cur.outsCount}`,
+          catchOrder:'', memo:'牽制アウト ' + base + '塁'
+        });
+        rebuildLog();
+        resetCur();
+        autoSave();
+        setTimeout(()=>{ advanceInning(); }, 300);
+        return;
+      }
+      // 3アウト未満：カウント継続・打順そのまま
+      const savedBalls   = cur.balls;
+      const savedStrikes = cur.strikes;
+      const savedOrder   = cur.order;
+      pitchLog.push({
+        num:pitchLog.length+1, inning:cur.inning, tb:cur.tb, order:cur.order,
+        pitcher: offPlPickoff.find(p=>p.pos==='投手')?.name||'',
+        batter: offPlPickoff[cur.order-1]?.name||'',
+        pitchType:cur.pitchType||'', speed:parseInt(spdStr)||null,
+        zone:cur.zone||'', zoneLabel:cur.zoneLabel||'',
+        result:'牽制', resultType:'sp',
+        specials:[...cur.specials],
+        hitQuality:'', fieldLabel:'', fieldZone:'', hitResult:'',
+        outs:1, runs:null, runners: cur.runners.map((r,i)=>r?i+1+'塁':'').filter(Boolean).join(','),
+        bso:`${cur.balls}-${cur.strikes}-${cur.outsCount}`,
+        catchOrder:'', memo:'牽制アウト ' + base + '塁'
+      });
+      rebuildLog();
+      resetCur();
+      // B・S・打順を復元
+      cur.balls   = savedBalls;
+      cur.strikes = savedStrikes;
+      cur.order   = savedOrder;
+      updateCountDots('b', cur.balls);
+      updateCountDots('s', cur.strikes);
+      buildOrderSelect();
+      updateHeader();
+      updateRunnerDisplay();
+      autoSave();
+      return;
+    }
+    // セーフの場合：打順・カウントを変えず記録のみ（そのまま下に流れる）
+    if(!cur._pickoffBase){
+      alert('牽制した塁を選択してください');
+      return;
+    }
+  } else if(!cur.result){
+    alert('投球結果を選択してください');
+    return;
+  }
 
   // ── 確定時にBSOカウントを更新（ここで一度だけ）──
   const r = cur.result;
@@ -4447,17 +4805,29 @@ function confirmPitch(){
         }
       } else if(result==='失敗'){
         cur.runners[b-1]=false; cur.runnerIds[b-1]=null;
+        // 盗塁失敗はアウト
+        cur.outsCount = Math.min(cur.outsCount + 1, 3);
+        updateCountDots('o', cur.outsCount);
       }
       [1,2,3].forEach(x=>{ document.getElementById('b'+x)?.classList.toggle('on',cur.runners[x-1]); });
       drawMiniDiamond([],null);
     });
     updateRunnerDisplay();
+    // 盗塁失敗で3アウトになった場合は即座にイニング交代
+    if(cur.outsCount >= 3){
+      setTimeout(()=>{ advanceInning(); }, 300);
+    }
   }
 
   // ── 自動進行 ──
   let _autoAdvanceOk = false;
   // previewがある場合はpr[]の最終状態をランナーに反映
-  if(cur._preview){
+  // ※ ボール・ストライク・牽制等はpreviewブランチに入らない
+  const _entryNeedsAdvance = entry.result==='インプレー'
+    || ['見逃し三振','空振り三振'].includes(entry.result)
+    || ['四球','死球'].includes(entry.result);
+
+  if(cur._preview && _entryNeedsAdvance){
     const prevPr     = cur._preview.pr || [];
     const prevArrows = cur._preview.arrows || [];
     const newRunners   = [false,false,false];
@@ -4507,18 +4877,36 @@ function confirmPitch(){
     }
 
     [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.toggle('on',cur.runners[b-1]); });
+
+    // ホームランナーの確定処理
+    if(cur._preview.pr && cur._preview.pr['home']){
+      applyHomeRunners(cur._preview.pr['home']);
+    }
+
     cur._preview = null;
     cur._selectedPreviewRunner = null;
-    setTimeout(processHomeQueue, 100);
-    cur.balls=0; cur.strikes=0;
-    updateCountDots('b',0); updateCountDots('s',0);
-    const offPl2p = cur.tb==='表'?game.orderA:game.orderB;
-    let nextOrderP = cur.order + 1;
-    if(nextOrderP > offPl2p.length) nextOrderP = 1;
-    cur.order = nextOrderP;
-    cur.batterSideManual = false;
-    buildOrderSelect();
-    updateHeader();
+
+    // 打順・カウントを進める条件：インプレー・三振・四死球のみ
+    const isInplayP    = entry.result==='インプレー';
+    const isStrikeoutP = ['見逃し三振','空振り三振'].includes(entry.result);
+    const isWalkP      = ['四球','死球'].includes(entry.result);
+
+    if(isInplayP || isStrikeoutP || isWalkP){
+      cur.balls=0; cur.strikes=0;
+      updateCountDots('b',0); updateCountDots('s',0);
+      const offPl2p = cur.tb==='表'?game.orderA:game.orderB;
+      if(cur.outsCount >= 3){
+        setTimeout(()=>{ advanceInning(); }, 300);
+      } else {
+        let nextOrderP = cur.order + 1;
+        if(nextOrderP > offPl2p.length) nextOrderP = 1;
+        cur.order = nextOrderP;
+        cur.batterSideManual = false;
+        buildOrderSelect();
+        updateHeader();
+      }
+    }
+    // ボール・ストライク等はカウント変更のみ（打順は進めない）
     _autoAdvanceOk = true;
   } else {
     try {
@@ -4548,22 +4936,43 @@ function confirmPitch(){
   }
   if(!_autoAdvanceOk){
     const offPlFallback = cur.tb==='表'?game.orderA:game.orderB;
-    const isReachFallback = ['単打','二塁打','三塁打','本塁打','内野安打','エラー','野選'].includes(entry.hitResult)
-      || ['四球','死球'].includes(entry.result)
-      || (entry.result==='インプレー' && !entry.hitResult);
-    const isOutFallback = ['見逃し三振','空振り三振'].includes(entry.result)
-      || ['凡打','ゴロアウト','フライアウト','ライナーアウト','犠打','犠飛','ゲッツー'].includes(entry.hitResult)
-      || (entry.outs !== null && entry.outs > 0);
-    if(isReachFallback || isOutFallback){
+
+    // 打順が進む条件：インプレー・三振・四死球のみ
+    const isInplay    = entry.result==='インプレー';
+    const isStrikeout = ['見逃し三振','空振り三振'].includes(entry.result);
+    const isWalk      = ['四球','死球'].includes(entry.result);
+
+    if(isInplay || isStrikeout || isWalk){
       cur.balls=0; cur.strikes=0;
       updateCountDots('b',0); updateCountDots('s',0);
-      let nextOrder = cur.order + 1;
-      if(nextOrder > offPlFallback.length) nextOrder = 1;
-      cur.order = nextOrder;
-      cur.batterSideManual = false;
-      buildOrderSelect();
-      updateHeader();
+
+      // アウトカウント加算（インプレー系はhitResultから）
+      if(isStrikeout){
+        cur.outsCount = Math.min(cur.outsCount+1, 3);
+        updateCountDots('o', cur.outsCount);
+      } else if(isInplay && entry.hitResult){
+        const outResults = ['凡打','ゲッツー','犠打','犠飛'];
+        if(outResults.includes(entry.hitResult)){
+          const addO = entry.hitResult==='ゲッツー' ? 2 : 1;
+          cur.outsCount = Math.min(cur.outsCount + addO, 3);
+          updateCountDots('o', cur.outsCount);
+        }
+      }
+
+      // 3アウトでイニング交代
+      if(cur.outsCount >= 3){
+        setTimeout(()=>{ advanceInning(); }, 300);
+      } else {
+        // 打順を次に進める
+        let nextOrder = cur.order + 1;
+        if(nextOrder > offPlFallback.length) nextOrder = 1;
+        cur.order = nextOrder;
+        cur.batterSideManual = false;
+        buildOrderSelect();
+        updateHeader();
+      }
     }
+    // ボール・ストライク・牽制・その他特殊は打順を進めない
   }
   resetCur();
   autoSave();
@@ -4579,15 +4988,28 @@ function rebuildLog(){
 
 function getValidTargets(sourceBase){
   // sourceBase: 0=打者, 1/2/3=各塁
+  // プレビューがある場合はpr[]の現在状態を参照（手動変更後の状態）
+  const pr = cur._preview && cur._preview.pr;
+  const homeNames = pr && pr['home'] ? pr['home'].map(h=>h.name) : [];
+
+  // 各塁の占有状態をpr[]から判定（falseまたは未設定=空き）
+  const isOccupied = b => {
+    if(b < 1 || b > 3) return false;
+    if(!pr) return !!cur.runners[b-1];
+    const prVal = pr[b-1];
+    if(prVal === false || prVal === null || prVal === undefined) return false;
+    return !!prVal;
+  };
+
   const targets = [];
   for(let t=sourceBase+1; t<=4; t++){
     let blocked = false;
     // 経路上に走者がいたらブロック
     for(let mid=sourceBase+1; mid<t; mid++){
-      if(cur.runners[mid-1]) blocked=true;
+      if(isOccupied(mid)) blocked=true;
     }
     // 到達塁が占有されていたらブロック（本塁は除く）
-    if(t<=3 && cur.runners[t-1]) blocked=true;
+    if(t<=3 && isOccupied(t)) blocked=true;
     if(!blocked) targets.push(t);
   }
   return targets;
@@ -4669,23 +5091,34 @@ function autoAdvance(entry){
     }
 
   } else if(['四球','死球'].includes(result)){
-    const newRunners = [...runners];
-    const newRunnerIds = [...runnerIds];
-    for(let base=1; base<=3; base++){
-      if(newRunners[base-1]){
-        if(base===3){
-          const rId = newRunnerIds[2];
-          runnerMoves.push({from:3, to:'本塁', name:getLabel(rId)});
-          queueForHome(getName(rId), rId, '四死球押し出し', {score:true, rbi:true});
-          newRunners[2]=false; newRunnerIds[2]=null;
-        } else {
-          const rId = newRunnerIds[base-1];
-          runnerMoves.push({from:base, to:base+1, name:getLabel(rId)});
-          newRunners[base]=true; newRunnerIds[base]=rId;
-          newRunners[base-1]=false; newRunnerIds[base-1]=null;
-        }
-      } else { break; }
+    // 1塁が詰まっている場合のみ押し出し連鎖（元の配置で判定）
+    const origRunners   = [...runners];
+    const origRunnerIds = [...runnerIds];
+    const newRunners    = [...runners];
+    const newRunnerIds  = [...runnerIds];
+
+    if(origRunners[0] && origRunners[1] && origRunners[2]){
+      // 満塁→3塁ランナー生還
+      const rId3 = origRunnerIds[2];
+      runnerMoves.push({from:3, to:'本塁', name:getLabel(rId3)});
+      queueForHome(getName(rId3), rId3, '四死球押し出し', {score:true, rbi:true});
+      newRunners[2]=origRunners[1]; newRunnerIds[2]=origRunnerIds[1];
+      newRunners[1]=origRunners[0]; newRunnerIds[1]=origRunnerIds[0];
+      runnerMoves.push({from:2, to:3, name:getLabel(origRunnerIds[1])});
+      runnerMoves.push({from:1, to:2, name:getLabel(origRunnerIds[0])});
+    } else if(origRunners[0] && origRunners[1]){
+      // 1・2塁→両者進塁
+      newRunners[2]=origRunners[1]; newRunnerIds[2]=origRunnerIds[1];
+      newRunners[1]=origRunners[0]; newRunnerIds[1]=origRunnerIds[0];
+      runnerMoves.push({from:2, to:3, name:getLabel(origRunnerIds[1])});
+      runnerMoves.push({from:1, to:2, name:getLabel(origRunnerIds[0])});
+    } else if(origRunners[0]){
+      // 1塁のみ→2塁へ
+      newRunners[1]=origRunners[0]; newRunnerIds[1]=origRunnerIds[0];
+      newRunners[0]=false; newRunnerIds[0]=null;
+      runnerMoves.push({from:1, to:2, name:getLabel(origRunnerIds[0])});
     }
+    // 2塁・3塁のみ等は動かない
     newRunners[0]=true; newRunnerIds[0]=batterId;
     runnerMoves.push({from:'打席', to:1, name:getLabel(batterId)});
     cur.runners = newRunners;
@@ -4763,11 +5196,92 @@ function autoAdvance(entry){
   }
 }
 
+function showPendingPosModal(pending){
+  if(!pending || !pending.length) return;
+  const sub = pending[0];
+  const rest = pending.slice(1);
+  const order = sub.side==='a' ? game.orderA : game.orderB;
+  const player = order[sub.orderIdx];
+  if(!player || player.name !== sub.name){
+    if(rest.length) showPendingPosModal(rest);
+    return;
+  }
+
+  let modal = document.getElementById('pending-pos-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'pending-pos-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+
+  const restJson = JSON.stringify(rest).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.3);">
+      <div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:6px;">🔄 守備交代の確認</div>
+      <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;">${sub.num?'#'+sub.num+' ':''}${sub.name}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">代打で出場しました。守備はどうしますか？</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button onclick="applyPendingPosKeep('${sub.side}',${sub.orderIdx},'${restJson}')"
+          style="padding:12px;border-radius:10px;border:1.5px solid var(--border);background:var(--white);font-size:13px;font-weight:700;cursor:pointer;color:var(--navy);">
+          🧤 そのまま守備につく
+          <div style="font-size:10px;font-weight:400;color:var(--muted);margin-top:2px;">前の選手のポジションを引き継ぐ</div>
+        </button>
+        <button onclick="applyPendingPosChange('${sub.side}',${sub.orderIdx},'${restJson}')"
+          style="padding:12px;border-radius:10px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+          🔄 選手交代する
+          <div style="font-size:10px;font-weight:400;opacity:0.8;margin-top:2px;">守備の選手を別の選手に交代</div>
+        </button>
+      </div>
+    </div>`;
+}
+
+function applyPendingPosKeep(side, orderIdx, restJson){
+  // 前の選手のポジションを引き継ぐ
+  const order = side==='a' ? game.orderA : game.orderB;
+  const player = order[orderIdx];
+  if(player && player._origPos){
+    player.pos = player._origPos;
+    delete player._origPos;
+  } else if(player && player.pos === '—'){
+    // _origPosがなければそのまま（登録時のポジションを維持）
+    player.pos = '—';
+  }
+  delete player._pinchHitter;
+  document.getElementById('pending-pos-modal').style.display = 'none';
+  buildOrderSelect(); updateHeader(); autoSave();
+  const rest = JSON.parse(restJson.replace(/\\'/g,"'"));
+  if(rest && rest.length) setTimeout(()=>showPendingPosModal(rest), 300);
+}
+
+function applyPendingPosChange(side, orderIdx, restJson){
+  // 選手交代画面に遷移
+  document.getElementById('pending-pos-modal').style.display = 'none';
+  const rest = JSON.parse(restJson.replace(/\\'/g,"'"));
+  // 残りの代打処理を後で行うため保存
+  game._pendingPosSubs = rest;
+  // 選手交代画面を開く
+  _changeSide = side;
+  _changeTargetIdx = orderIdx;
+  showScreen('change');
+  renderChangeScreen();
+  // 対象選手を選択状態にしておく
+  setTimeout(()=>selectChangeTarget(orderIdx), 100);
+}
+
 function advanceInning(){
   cur.balls=0; cur.strikes=0; cur.outsCount=0;
+  // style.backgroundの直接指定もクリア
+  ['db0','db1','db2','ds0','ds1','do0','do1'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.style.background=''; el.classList.remove('b-on','s-on','o-on','preview-dot'); }
+  });
   updateCountDots('b',0); updateCountDots('s',0); updateCountDots('o',0);
   cur.runners=[false,false,false];
   cur.runnerIds=[null,null,null];
+  [1,2,3].forEach(b=>{ document.getElementById('b'+b)?.classList.remove('on'); });
 
   if(cur.tb==='表'){
     // 表が終わる→裏へ。表の打順を保存して裏の打順を復元
@@ -4792,6 +5306,17 @@ function advanceInning(){
   updateHeader();
   updateRunnerDisplay();
   updateScoreboard();
+
+  // 代打選手の守備位置設定を促す
+  if(game._pendingPosSubs && game._pendingPosSubs.length){
+    // 攻守交代後、守備につく側のチェック
+    const nowDefSide = cur.tb==='表'?'b':'a'; // 攻撃が表なら守備はb
+    const pending = game._pendingPosSubs.filter(s=>s.side===nowDefSide);
+    if(pending.length){
+      game._pendingPosSubs = game._pendingPosSubs.filter(s=>s.side!==nowDefSide);
+      setTimeout(()=>showPendingPosModal(pending), 400);
+    }
+  }
 
   // 代打後の守備交代リマインダー
   if(game._pendingDefSub){
@@ -4920,20 +5445,21 @@ function renderChangeScreen(){
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px;">打順が登録されていません</div>';
     return;
   }
+  const ALL_POS = ['投手','捕手','一塁手','二塁手','三塁手','遊撃手','左翼手','中堅手','右翼手','DH','内野手','外野手','—'];
+
   el.innerHTML = displayOrder.map((p,i)=>{
     const isSelected = _changeTargetIdx===i;
     const posLabel = POS_LABELS[p.pos] || p.pos;
     const isCurBatter = (order && order[cur.order-1] ? order[cur.order-1].id : null) === p.id && _changeSide===(cur.tb==='表'?'a':'b');
-    return `<div onclick="selectChangeTarget(${i})"
-      style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;cursor:pointer;
-             background:${isSelected?'var(--blue)':isCurBatter?'var(--amber-light)':'var(--white)'};
-             border:1.5px solid ${isSelected?'var(--blue)':isCurBatter?'#f0d090':'var(--border)'};
-             color:${isSelected?'#fff':'var(--text)'};">
-      <div style="font-size:11px;min-width:24px;color:${isSelected?'rgba(255,255,255,.7)':'var(--muted)'};">${p.pos!=='投手(DH)'?i+1+'番':'守備'}</div>
-      <div style="font-size:12px;min-width:70px;color:${isSelected?'rgba(255,255,255,.7)':'var(--muted)'};">${posLabel}</div>
-      <div style="font-size:14px;font-weight:700;">${p.num?'#'+p.num+' ':''}${p.name||'（未登録）'}</div>
-      ${isCurBatter?`<div style="font-size:10px;background:var(--amber);color:var(--navy);border-radius:8px;padding:1px 6px;margin-left:auto;">打席中</div>`:''}
-    </div>`;
+    const posSel = p.pos!=='投手(DH)'
+      ? '<select onclick="event.stopPropagation()" onchange="changeOrderPos(\'' + _changeSide + '\',' + i + ',this.value);renderChangeScreen();" style="font-size:11px;padding:2px 4px;border:1px solid ' + (isSelected?'rgba(255,255,255,.5)':'var(--border)') + ';border-radius:6px;background:' + (isSelected?'rgba(255,255,255,.15)':'#fff') + ';color:' + (isSelected?'#fff':'var(--navy)') + ';max-width:80px;flex-shrink:0;">' + ALL_POS.map(pos=>'<option value="'+pos+'"'+(p.pos===pos?' selected':'')+'>'+pos+'</option>').join('') + '</select>'
+      : '<span style="font-size:11px;color:' + (isSelected?'rgba(255,255,255,.7)':'var(--muted)') + ';">' + posLabel + '</span>';
+    return '<div onclick="selectChangeTarget(' + i + ')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;cursor:pointer;background:' + (isSelected?'var(--blue)':isCurBatter?'var(--amber-light)':'var(--white)') + ';border:1.5px solid ' + (isSelected?'var(--blue)':isCurBatter?'#f0d090':'var(--border)') + ';color:' + (isSelected?'#fff':'var(--text)') + ';margin-bottom:3px;">'
+      + '<div style="font-size:11px;min-width:22px;color:' + (isSelected?'rgba(255,255,255,.7)':'var(--muted)') + ';">' + (p.pos!=='投手(DH)'?i+1+'番':'守備') + '</div>'
+      + '<div style="font-size:13px;font-weight:700;flex:1;">' + (p.num?'#'+p.num+' ':'') + (p.name||'（未登録）') + '</div>'
+      + posSel
+      + (isCurBatter?'<div style="font-size:10px;background:var(--amber);color:var(--navy);border-radius:8px;padding:1px 6px;">打席中</div>':'')
+      + '</div>';
   }).join('');
   document.getElementById('change-candidate-wrap').style.display='none';
 }
@@ -4984,7 +5510,6 @@ function selectChangeTarget(idx){
 }
 
 function selectChangeCandidate(idx, newName, defaultPos, newNum){
-  // 選手を選んだ後、守備ポジションを選ばせる
   const POS_LIST = ['投手','捕手','一塁手','二塁手','三塁手','遊撃手','左翼手','中堅手','右翼手','DH','内野手','外野手','—'];
   const POS_LABEL = {'投手':'⚾ 投手','捕手':'🧤 捕手','一塁手':'1️⃣ 一塁','二塁手':'2️⃣ 二塁','三塁手':'3️⃣ 三塁','遊撃手':'🔷 遊撃','左翼手':'🟢 左翼','中堅手':'🟡 中堅','右翼手':'🔴 右翼','DH':'⚡ DH','内野手':'🔵 内野','外野手':'🟤 外野','—':'その他'};
 
@@ -4995,10 +5520,18 @@ function selectChangeCandidate(idx, newName, defaultPos, newNum){
     ✅ ${newNum?'#'+newNum+' ':''}${newName} を選択<br>
     <span style="font-size:11px;font-weight:400;color:var(--muted);">この試合でのポジションを選んでください</span>
   </div>`;
+
+  // 代打ボタン（守備位置は後で設定）
+  html += `<button onclick="executeChange(${idx},'${safeName}','—','${safeNum}',true)"
+    style="width:100%;padding:8px 12px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
+           border:2px solid #f0a000;background:#fffbe6;color:#7a5010;margin-bottom:10px;">
+    🏃 代打（守備位置はイニング終了後に設定）
+  </button>`;
+
   html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
   POS_LIST.forEach(pos=>{
     const isDefault = pos === defaultPos;
-    html += `<button onclick="executeChange(${idx},'${safeName}','${pos}','${safeNum}')"
+    html += `<button onclick="executeChange(${idx},'${safeName}','${pos}','${safeNum}',false)"
       style="padding:6px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;
              border:1.5px solid ${isDefault?'var(--navy)':'var(--border)'};
              background:${isDefault?'var(--navy)':'var(--white)'};
@@ -5018,7 +5551,7 @@ function cancelChangeSelection(){
   document.getElementById('change-candidate-wrap').style.display='none';
 }
 
-function executeChange(idx, newName, newPos, newNum){
+function executeChange(idx, newName, newPos, newNum, isPinchHitter=false){
   const order = _changeSide==='a' ? game.orderA : game.orderB;
   const dhOn = _changeSide==='a' ? game.dhA : game.dhB;
   const displayOrder = [...order];
@@ -5032,40 +5565,50 @@ function executeChange(idx, newName, newPos, newNum){
   const oldName = target.name;
 
   if(target.pos==='投手(DH)'){
-    // 守備投手の交代
     if(_changeSide==='a') game.pitcherA=newName; else game.pitcherB=newName;
   } else {
-    // 打順選手の交代
     order[idx] = {
       id: newName,
       name: newName,
       num: newNum,
       pos: newPos,
       bat: order[idx]?.bat||'右',
+      _pinchHitter: isPinchHitter,
+      _origPos: isPinchHitter ? (order[idx]?.pos || '—') : undefined,
     };
   }
 
-  // ログに交代記録
+  // 代打の場合：イニング終了後に守備位置設定を促すよう記録
+  if(isPinchHitter){
+    if(!game._pendingPosSubs) game._pendingPosSubs = [];
+    game._pendingPosSubs.push({
+      side: _changeSide,
+      orderIdx: idx,
+      name: newName,
+      num: newNum,
+    });
+  }
+
   pitchLog.push({
     num: pitchLog.length+1,
     inning: cur.inning, tb: cur.tb, order: cur.order,
     pitcher: '', batter: '',
-    result: '選手交代',
+    result: isPinchHitter ? '代打' : '選手交代',
     resultType: 'sp',
     specials: [`${oldName}→${newName}`],
     outs: null, runs: null, runners: '', bso: '',
-    catchOrder: '', memo: `選手交代: ${oldName}→${newName}(${newPos})`
+    catchOrder: '', memo: isPinchHitter ? `代打: ${oldName}→${newName}` : `選手交代: ${oldName}→${newName}(${newPos})`
   });
 
   autoSave();
   updateHeader();
-  buildOrderSelect();   // 左側打順表示を更新
-  updateRunnerDisplay(); // ランナー表示も更新
+  buildOrderSelect();
+  updateRunnerDisplay();
   _changeTargetIdx = null;
   renderChangeScreen();
   document.getElementById('change-candidate-wrap').style.display='none';
 
-  alert(`${oldName} → ${newName} に交代しました`);
+  alert(isPinchHitter ? `代打：${oldName} → ${newName}（守備位置はイニング終了後に設定）` : `${oldName} → ${newName} に交代しました`);
 }
 
 function toggleSubPanel(){
@@ -5168,6 +5711,18 @@ function resetCur(){
   cur._scoredRunners=null;
   clearPreview();
   _pendingScorers=[]; _pendingBatter='';
+  const pbw = document.getElementById('pickoff-base-wrap');
+  if(pbw) pbw.style.display = 'none';
+  const prw = document.getElementById('pickoff-result-wrap');
+  if(prw) prw.style.display = 'none';
+  const cb = document.getElementById('pickoff-out-check');
+  if(cb) cb.checked = false;
+  cur._pickoffBase = null;
+  cur._pickoffResult = null;
+  [1,2,3].forEach(b=>{
+    const pb = document.getElementById('pickoff-b'+b);
+    if(pb){ pb.style.background='var(--white)'; pb.style.borderColor='var(--border)'; pb.style.color='var(--text)'; }
+  });
   const edp=document.getElementById('error-detail-panel');
   if(edp) edp.style.display='none';
   const fb=document.getElementById('err-btn-fielding');
@@ -5191,6 +5746,7 @@ function resetCur(){
   document.getElementById('field-disp').textContent='—';
   document.getElementById('memo-box').value='';
   document.getElementById('inplay-section').classList.remove('show');
+  document.getElementById('inplay-title').textContent='打球詳細';
   const hqw=document.getElementById('hq-wrap');
   const hrw=document.getElementById('hit-result-wrap');
   if(hqw) hqw.style.display='none';
@@ -5324,8 +5880,8 @@ function loadEntry(e){
   });
   const showField = ['インプレー','ファール','ファールチップ'].includes(e.result);
   document.getElementById('inplay-section').classList.toggle('show', showField);
-  if(document.getElementById('hq-wrap')) document.getElementById('hq-wrap').style.display=e.result==='インプレー'?'':'none';
-  if(document.getElementById('hit-result-wrap')) document.getElementById('hit-result-wrap').style.display=e.result==='インプレー'?'':'none';
+  if(document.getElementById('hq-wrap')) document.getElementById('hq-wrap').style.display=showField?'block':'none';
+  if(document.getElementById('hit-result-wrap')) document.getElementById('hit-result-wrap').style.display=e.result==='インプレー'?'flex':'none';
 
   // 打球の質
   if(e.hitQuality){
