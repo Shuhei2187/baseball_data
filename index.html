@@ -850,6 +850,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);}
           <div style="display:flex;flex-wrap:wrap;gap:4px;" id="error-type-btns"></div>
         </div>
       </div>
+      <div id="editing-banner" style="display:none;background:#fff3cd;border:1.5px solid #f0b429;border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:11px;font-weight:700;color:#8a6100;align-items:center;justify-content:space-between;gap:6px;">
+        <span id="editing-banner-text">✏️ 修正中</span>
+        <button onclick="if(confirm('修正をやめて新規入力に戻りますか？')) resetCur();"
+          style="border:1px solid #f0b429;background:#fff;color:#8a6100;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;">やめる</button>
+      </div>
       <div style="display:flex;gap:4px;">
         <button class="confirm-btn" onclick="confirmPitch()" style="flex:1;">確定する</button>
         <button onclick="if(confirm('この球の入力内容をクリアしますか？')) resetCur();"
@@ -2608,27 +2613,20 @@ function clearSpeed(){
 // ===== RESULT =====
 function applyHomeRunners(homeList){
   // pr['home']の確定処理：得点・打点・アウトを反映
+  // ※ scores[]・playerStatsへの直接書き込みはしない。cur.runs / cur._scoreEventsに積んでおき、
+  //   confirmPitch側で一度だけ確定する（二重計上・未確定データの残留を防ぐため）。
   if(!homeList || !homeList.length) return;
   const off = cur.tb==='表'?'a':'b';
   const offPl = cur.tb==='表'?game.orderA:game.orderB;
   const batter = offPl[cur.order-1];
-  const inn = Math.min(cur.inning,9)-1;
+  if(!cur._scoreEvents) cur._scoreEvents = [];
 
   homeList.forEach(h=>{
     if(h.state === 'scored'){
       if(h.score !== false){
-        if(inn>=0){ scores[off][inn]=(scores[off][inn]||0)+1; }
         cur.runs = (cur.runs||0) + 1; // ログの得点欄にも反映
-        // ランナー本人の得点
         const scorer = offPl.find(p=>p.name===h.name||(p.num&&p.num===h.name));
-        if(scorer?.name){
-          if(!playerStats[off][scorer.name]) playerStats[off][scorer.name]={rbi:0,runs:0,hits:0,ab:0};
-          playerStats[off][scorer.name].runs = (playerStats[off][scorer.name].runs||0)+1;
-        }
-        if(h.rbi && batter?.name){
-          if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
-          playerStats[off][batter.name].rbi = (playerStats[off][batter.name].rbi||0)+1;
-        }
+        cur._scoreEvents.push({scorerName:scorer?.name||h.name, rbi:!!h.rbi});
       }
     } else if(h.state === 'out'){
       cur.outsCount = Math.min(cur.outsCount+1, 3);
@@ -2636,10 +2634,10 @@ function applyHomeRunners(homeList){
     }
     // pending（未決定）は生還扱い（デフォルト）
     else if(h.state === 'pending'){
-      if(inn>=0){ scores[off][inn]=(scores[off][inn]||0)+1; }
+      cur.runs = (cur.runs||0) + 1;
+      cur._scoreEvents.push({scorerName:h.name, rbi:false});
     }
   });
-  updateScoreboard();
 }
 
 function showHomeRunnerModal(idx){
@@ -3774,6 +3772,20 @@ const RESULT_DOT_COLOR = {
   'default':'#333'
 };
 
+// 捕手目線・投手目線 × 右打者・左打者 の組み合わせで、キャンバス左側が「内角」かどうかを判定
+// （drawZoneCanvasの内外ラベル決定ロジックと同じ式。ここを唯一の正とする）
+function zoneLeftIsInner(view, isLeftBatter){
+  if(view !== 'pitcher') return !isLeftBatter; // 捕手目線：右打者→左が内、左打者→左が外
+  else return isLeftBatter;                     // 投手目線：右打者→左が外、左打者→左が内
+}
+// キャンバス座標を「捕手目線・内は常にキャンバス左」の共通座標系に変換する。
+// 逆変換も同じ式（左右反転は2回かければ元に戻る）なので、記録時にも読み込み時にも使える。
+function normalizeZoneX(x, view, isLeftBatter, canvasW){
+  if(x == null) return x;
+  canvasW = canvasW || 200;
+  return zoneLeftIsInner(view, isLeftBatter) ? x : (canvasW - x);
+}
+
 // 球種 → 記号（コース入力・分析画面の両方で共通利用）
 const PITCH_SHAPE = {
   'ストレート':'circle', 'ツーシーム':'square', 'スライダー':'triangle-right',
@@ -4673,11 +4685,13 @@ function scoreRunner(fromBase, type){
   // 矢印表示
   showRunnerArrows([{from:fromBase, to:'本塁', name}]);
 
-  // 得点を加算
+  // 得点を加算(scores[]への書き込みはconfirmPitch側でまとめて行う。ここではcur.runsのみ更新)
   const newRuns = (cur.runs||0)+1;
   cur.runs = newRuns;
-  const inn=Math.min(cur.inning,9)-1;
-  if(inn>=0){scores[off][inn]=(scores[off][inn]||0)+1; updateScoreboard();}
+
+  // 選手統計もconfirmPitch側でまとめて確定する（二重計上防止のため、ここでは直接書き込まない）
+  if(!cur._scoreEvents) cur._scoreEvents = [];
+  cur._scoreEvents.push({scorerName:name, rbi:(type==='打点')});
 
   // 得点ボタンハイライト
   document.querySelectorAll('.or-btn.sel-r').forEach(b=>b.classList.remove('sel-r'));
@@ -4686,13 +4700,7 @@ function scoreRunner(fromBase, type){
     if(btn.textContent.trim()===labels[Math.min(newRuns,4)]) btn.classList.add('sel-r');
   });
 
-  // 選手統計
-  if(!playerStats[off][name]) playerStats[off][name]={rbi:0,runs:0,hits:0,ab:0};
-  playerStats[off][name].runs=(playerStats[off][name].runs||0)+1;
-  if(type==='打点' && batter?.name){
-    if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
-    playerStats[off][batter.name].rbi=(playerStats[off][batter.name].rbi||0)+1;
-  }
+  // 選手統計はconfirmPitch側でcur._scoreEventsから確定する（ここでは書き込まない）
 
   // スコアリングパネルも更新
   if(_pendingScorers.length){
@@ -4829,6 +4837,8 @@ function updateConfirm(){
   if(cur.specials.length) items.push(['特殊', cur.specials.join('/')]);
   document.getElementById('cf-list').innerHTML=items.map(([l,v])=>`
     <div class="cf-item"><div><div class="cf-label">${l}</div><div class="cf-val">${v}</div></div></div>`).join('');
+  const cfBtn = document.querySelector('.confirm-btn');
+  if(cfBtn) cfBtn.textContent = cur.editingNum ? '上書き保存する' : '確定する';
 }
 
 // ===== CONFIRM PITCH =====
@@ -4983,7 +4993,8 @@ function confirmPitch(){
     pitcher:pitcher?.name||'—', batter:batter?.name||'—',
     pitchType:cur.pitchType, speed:cur.speed,
     stance:cur.stance,
-    zone:cur.zoneLabel, zoneNum:cur.zone||null, zoneX:cur.zoneX||null, zoneY:cur.zoneY||null,
+    zone:cur.zoneLabel, zoneNum:cur.zone||null,
+    zoneX:normalizeZoneX(cur.zoneX, cur.view, cur.batterSide==='left', 200), zoneY:cur.zoneY||null,
     preBalls:cur.preBalls!=null?cur.preBalls:cur.balls, preStrikes:cur.preStrikes!=null?cur.preStrikes:cur.strikes, preOuts:cur.preOuts!=null?cur.preOuts:cur.outsCount,
     pickoffBase:cur._pickoffBase||null,
     result:cur.result, resultType:cur.resultType,
@@ -5007,7 +5018,7 @@ function confirmPitch(){
     const idx = pitchLog.findIndex(p=>p.num===cur.editingNum);
     if(idx>-1){
       const oldEntry = pitchLog[idx];
-      // 旧entryのスコア・ヒットを元に戻す
+      // 旧entryのスコア・ヒット・打数を元に戻す
       if(oldEntry.runs && oldEntry.runs>0){
         const oldOff = oldEntry.tb==='表'?'a':'b';
         const oldInn = Math.min(oldEntry.inning,9)-1;
@@ -5017,6 +5028,19 @@ function confirmPitch(){
       if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(oldEntry.hitResult)){
         const oldOff=oldEntry.tb==='表'?'a':'b';
         hits[oldOff]=Math.max(0,(hits[oldOff]||0)-1);
+      }
+      // 打数(AB)の巻き戻し（選手個人成績の得点・打点は「誰が生還したか」を保存していないため
+      // 正確に戻せず、ここでは対象外。打数は打者本人に紐づくので確実に戻せる）
+      if(oldEntry.batter){
+        const oldOff2 = oldEntry.tb==='表'?'a':'b';
+        const oldIsAtBat = !['四球','死球'].includes(oldEntry.result) && !['犠打','犠飛'].includes(oldEntry.hitResult) &&
+          (['見逃し三振','空振り三振'].includes(oldEntry.result)||['単打','二塁打','三塁打','本塁打','内野安打','凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー','エラー','野選'].includes(oldEntry.hitResult));
+        if(oldIsAtBat && playerStats[oldOff2][oldEntry.batter]){
+          playerStats[oldOff2][oldEntry.batter].ab = Math.max(0,(playerStats[oldOff2][oldEntry.batter].ab||0)-1);
+        }
+        if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(oldEntry.hitResult) && playerStats[oldOff2][oldEntry.batter]){
+          playerStats[oldOff2][oldEntry.batter].hits = Math.max(0,(playerStats[oldOff2][oldEntry.batter].hits||0)-1);
+        }
       }
       entry.num = cur.editingNum;
       pitchLog[idx] = entry;
@@ -5034,7 +5058,30 @@ function confirmPitch(){
       const inn2=Math.min(cur.inning,9)-1;
       if(inn2>=0){scores[off][inn2]=(scores[off][inn2]||0)+cur.runs;updateScoreboard();}
     }
-    if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(cur.hitResult)){hits[off]++;updateScoreboard();}
+    (cur._scoreEvents||[]).forEach(ev=>{
+      if(ev.scorerName){
+        if(!playerStats[off][ev.scorerName]) playerStats[off][ev.scorerName]={rbi:0,runs:0,hits:0,ab:0};
+        playerStats[off][ev.scorerName].runs=(playerStats[off][ev.scorerName].runs||0)+1;
+      }
+      if(ev.rbi && batter?.name){
+        if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+        playerStats[off][batter.name].rbi=(playerStats[off][batter.name].rbi||0)+1;
+      }
+    });
+    if(['単打','二塁打','三塁打','本塁打','内野安打'].includes(cur.hitResult)){
+      hits[off]++;updateScoreboard();
+      if(batter?.name){
+        if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+        playerStats[off][batter.name].hits=(playerStats[off][batter.name].hits||0)+1;
+      }
+    }
+    if(batter?.name && !['四球','死球'].includes(cur.result) && !['犠打','犠飛'].includes(cur.hitResult)){
+      const isAtBatResultE=['見逃し三振','空振り三振'].includes(cur.result)||['単打','二塁打','三塁打','本塁打','内野安打','凡打','ゴロアウト','フライアウト','ライナーアウト','ゲッツー','エラー','野選'].includes(cur.hitResult);
+      if(isAtBatResultE){
+        if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+        playerStats[off][batter.name].ab=(playerStats[off][batter.name].ab||0)+1;
+      }
+    }
 
     rebuildLog();
     resetCur();
@@ -5260,6 +5307,28 @@ function confirmPitch(){
     }
     // ボール・ストライク・牽制・その他特殊は打順を進めない
   }
+
+  // ── 得点・打点をここで一度だけ確定する ──
+  // scoreRunner/applyHomeRunners/盗塁処理がここまでに積んだcur.runs・cur._scoreEventsを
+  // まとめてscores[]・playerStatsに反映する（複数箇所からの直接書き込みによる二重計上を防ぐため、
+  // 通常フローでの確定はこの1箇所だけで行う）。
+  if(cur.runs && cur.runs>0){
+    const lastIdx = pitchLog.findIndex(e2=>e2.num===entry.num);
+    if(lastIdx>=0) pitchLog[lastIdx].runs = cur.runs; // ログの得点欄も最終値に揃える
+    const inn3 = Math.min(cur.inning,9)-1;
+    if(inn3>=0){ scores[off][inn3] = (scores[off][inn3]||0) + cur.runs; updateScoreboard(); }
+  }
+  (cur._scoreEvents||[]).forEach(ev=>{
+    if(ev.scorerName){
+      if(!playerStats[off][ev.scorerName]) playerStats[off][ev.scorerName]={rbi:0,runs:0,hits:0,ab:0};
+      playerStats[off][ev.scorerName].runs=(playerStats[off][ev.scorerName].runs||0)+1;
+    }
+    if(ev.rbi && batter?.name){
+      if(!playerStats[off][batter.name]) playerStats[off][batter.name]={rbi:0,runs:0,hits:0,ab:0};
+      playerStats[off][batter.name].rbi=(playerStats[off][batter.name].rbi||0)+1;
+    }
+  });
+
   resetCur();
   autoSave();
 }
@@ -5343,7 +5412,7 @@ function autoAdvance(entry){
       homeOrder.forEach(({from, id, name})=>{
         if(from>0 && !runners[from-1]) return;
         runnerMoves.push({from: from===0?'打席':from, to:'本塁', name:getLabel(id)});
-        queueForHome(name, id, '本塁打による生還', {score:true, rbi:true});
+        queueForHome(name, id, '本塁打による生還', {score:true, rbi:true}, entry.num);
       });
       cur.runners   = [false,false,false];
       cur.runnerIds = [null,null,null];
@@ -5364,7 +5433,7 @@ function autoAdvance(entry){
         if(dest===3 && newRunners[2]){
           const lbl = getLabel(id);
           runnerMoves.push({from: from===0?'打席':from, to:'本塁', name:lbl});
-          queueForHome(name, id, (hitResult||result)+'による生還', {score:true, rbi:false});
+          queueForHome(name, id, (hitResult||result)+'による生還', {score:true, rbi:false}, entry.num);
         } else if(dest>=1 && dest<=3){
           newRunners[dest-1] = true;
           newRunnerIds[dest-1] = id;
@@ -5387,7 +5456,7 @@ function autoAdvance(entry){
       // 満塁→3塁ランナー生還
       const rId3 = origRunnerIds[2];
       runnerMoves.push({from:3, to:'本塁', name:getLabel(rId3)});
-      queueForHome(getName(rId3), rId3, '四死球押し出し', {score:true, rbi:true});
+      queueForHome(getName(rId3), rId3, '四死球押し出し', {score:true, rbi:true}, entry.num);
       newRunners[2]=origRunners[1]; newRunnerIds[2]=origRunnerIds[1];
       newRunners[1]=origRunners[0]; newRunnerIds[1]=origRunnerIds[0];
       runnerMoves.push({from:2, to:3, name:getLabel(origRunnerIds[1])});
@@ -5419,7 +5488,7 @@ function autoAdvance(entry){
       const dest = base+1;
       if(dest>=4){
         runnerMoves.push({from:base, to:'本塁', name:getLabel(rId)});
-        queueForHome(getName(rId), rId, '犠打による進塁', {score:false, rbi:false});
+        queueForHome(getName(rId), rId, '犠打による進塁', {score:false, rbi:false}, entry.num);
       } else {
         newRunners[dest-1]=true; newRunnerIds[dest-1]=rId;
         runnerMoves.push({from:base, to:dest, name:getLabel(rId)});
@@ -5436,7 +5505,7 @@ function autoAdvance(entry){
     if(runners[2]){
       const rId = runnerIds[2];
       runnerMoves.push({from:3, to:'本塁', name:getLabel(rId)});
-      queueForHome(getName(rId), rId, '犠飛（打者:'+batterName+'）', {score:true, rbi:true});
+      queueForHome(getName(rId), rId, '犠飛（打者:'+batterName+'）', {score:true, rbi:true}, entry.num);
       newRunners[2]=false; newRunnerIds[2]=null;
     }
     cur.outsCount = Math.min(cur.outsCount+1, 3);
@@ -6074,6 +6143,7 @@ function resetCur(){
   cur.hitQuality='';cur.fieldZone='';cur.fieldLabel='';cur.hitResult='';cur.runType=null;cur.stealRunner=null;cur.stealResult=null;cur.stealRunners={};cur.errorFielder=null;cur.errorPos=null;cur.errorType=null;
   cur._preview=null; cur._selectedPreviewRunner=null;
   cur._scoredRunners=null;
+  cur._scoreEvents=null;
   clearPreview();
   _pendingScorers=[]; _pendingBatter='';
   const pbw = document.getElementById('pickoff-base-wrap');
@@ -6128,6 +6198,7 @@ function resetCur(){
   if(rrb) rrb.style.display='none';
   cur.fieldX=null; cur.fieldY=null;
   cur.editingNum=null;
+  { const ebn=document.getElementById('editing-banner'); if(ebn) ebn.style.display='none'; }
   pendingDot = null;
   const canvas = document.getElementById('field-canvas');
   if(canvas) drawField(canvas);
@@ -6209,6 +6280,19 @@ function loadEntry(e){
   if(pl) document.getElementById('sel-order').value = pl.id;
   cur.order = e.order;
 
+  // 走者（1,2,3塁）の復元 ── これが復元されないと、修正して確定した時に
+  // 「その時点の走者」ではなく「今ライブで表示されている走者」で上書きされてしまう
+  cur.runners = [false,false,false];
+  cur.runnerIds = [null,null,null];
+  [e.runner1, e.runner2, e.runner3].forEach((rname, i)=>{
+    if(rname){
+      cur.runners[i] = true;
+      const rp = offPl.find(p=>p.name===rname);
+      cur.runnerIds[i] = rp ? rp.id : rname; // 選手が見つからない場合は名前をそのままIDとして保持
+    }
+  });
+  updateRunnerDisplay();
+
   // 捕手の構え
   if(e.stance){
     document.querySelectorAll('#stance-grid .stance-btn').forEach(b=>{
@@ -6235,11 +6319,14 @@ function loadEntry(e){
   // コース（ゾーンセル or ボール球）
   document.querySelectorAll('.sz-cell').forEach(c=>{c.classList.remove('sel');c.style.background='';c.style.color='';});
   document.querySelectorAll('.bz').forEach(c=>c.classList.remove('sel'));
-  if(e.zone){
-    cur.zone=e.zone; cur.zoneLabel=e.zoneLabel||String(e.zone);
-    cur.zoneX=e.zoneX||null; cur.zoneY=e.zoneY||null;
+  if(e.zone || e.zoneNum!=null){
+    cur.zone = e.zoneNum!=null ? e.zoneNum : null;
+    cur.zoneLabel = e.zone || String(e.zoneNum||'');
+    // 保存座標は正規化済み(内=キャンバス左)。今の目線・打者設定に合わせて逆変換して表示する
+    cur.zoneX = normalizeZoneX(e.zoneX, cur.view, cur.batterSide==='left', 200);
+    cur.zoneY = e.zoneY!=null ? e.zoneY : null;
     document.getElementById('zone-disp').textContent=cur.zoneLabel;
-    drawZoneCanvas(e.zone, e.zoneX||null, e.zoneY||null);
+    drawZoneCanvas(cur.zone, cur.zoneX, cur.zoneY);
   }
 
   // 結果
@@ -6272,6 +6359,20 @@ function loadEntry(e){
     cur.hitResult=e.hitResult;
   }
 
+  // 打球の落下点
+  cur.fieldZone = e.fieldZone||''; cur.fieldLabel = e.fieldLabel||'';
+  cur.fieldX = e.fieldX!=null ? e.fieldX : null;
+  cur.fieldY = e.fieldY!=null ? e.fieldY : null;
+  const fdEl = document.getElementById('field-disp');
+  if(fdEl) fdEl.textContent = cur.fieldLabel || '—';
+  if(cur.fieldX!=null && cur.fieldY!=null){
+    const color = RESULT_DOT_COLOR[cur.hitResult] || RESULT_DOT_COLOR[cur.result] || '#aaa';
+    pendingDot = {x:cur.fieldX, y:cur.fieldY, label:cur.fieldLabel, code:cur.fieldZone, color, num:e.batter, confirmed:true};
+  } else {
+    pendingDot = null;
+  }
+  { const fc=document.getElementById('field-canvas'); if(fc) drawField(fc); }
+
   // 特殊
   cur.specials=[...e.specials];
   document.querySelectorAll('.res-btn[onclick*="toggleSp"]').forEach(b=>{
@@ -6295,9 +6396,14 @@ function loadEntry(e){
   // スクロールして入力画面上部へ
   document.querySelector('.panels').scrollIntoView({behavior:'smooth', block:'start'});
   updateConfirm();
-  alert(`${e.num}球目を読み込みました。修正して「確定する」を押すと上書きされます。`);
+  // 編集中バナーで常に分かるようにしたので、都度のalertは出さない
   // 編集モード：確定時に同じnum行を上書き
   cur.editingNum = e.num;
+  const ebn = document.getElementById('editing-banner');
+  if(ebn){
+    ebn.style.display = 'flex';
+    document.getElementById('editing-banner-text').textContent = `✏️ ${e.num}球目を修正中`;
+  }
 }
 
 function deleteLastPitch(){
@@ -7027,8 +7133,8 @@ let _homeModalActive = null; // 現在表示中のモーダルデータ
 let _homeScoreFlag = false;
 let _homeRbiFlag = false;
 
-function queueForHome(runnerName, runnerId, reason, preset){
-  _homeQueue.push({runnerName, runnerId, reason, preset: preset||{score:false, rbi:false}});
+function queueForHome(runnerName, runnerId, reason, preset, entryNum){
+  _homeQueue.push({runnerName, runnerId, reason, preset: preset||{score:false, rbi:false}, entryNum});
 }
 
 function processHomeQueue(){
@@ -7095,7 +7201,17 @@ function homeConfirm(){
   const d = _homeModalActive;
   const off = cur.tb==='表'?'a':'b';
   const inn = Math.min(cur.inning,9)-1;
+  // このプレーは既にconfirmPitchでログ確定済み。ここは非同期に解決される「その後の1回」なので、
+  // scores[]・playerStatsへの直接コミットで正しい（後から一括確定する場所が無いため）。
+  // ただし対応するpitchLogエントリのrunsにも遡って反映し、CSV/分析側の集計とズレないようにする。
   if(inn>=0){ scores[off][inn]=(scores[off][inn]||0)+1; updateScoreboard(); }
+  if(d.entryNum!=null){
+    const idx = pitchLog.findIndex(e=>e.num===d.entryNum);
+    if(idx>=0){
+      pitchLog[idx].runs = (pitchLog[idx].runs||0) + 1;
+      rebuildLog();
+    }
+  }
   if(_homeRbiFlag){
     const offPl = cur.tb==='表'?game.orderA:game.orderB;
     const batter = offPl[cur.order-1];
